@@ -1,5 +1,5 @@
 [[package]]
-name = 'aspida-core'
+name = 'PIDA'
 source = 'member'
 dependencies = ['std']
 
