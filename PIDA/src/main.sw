@@ -6,14 +6,10 @@ use std::constants::ZERO_B256;
 use std::token::*;
 use std::storage::*;
 use std::call_frames::contract_id;
+use token_abi::*;
 
-pub struct TokenInitializeConfig {
-    name: str[12],
-    symbol: str[4],
-    decimals: u8,
-}
 
-const MAX_SUPPLY: u64 = 1000000000000000000 // 1 Billion
+const MAX_SUPPLY: u64 = 1000000000000000000; // 1 Billion
 
 storage {
     config: TokenInitializeConfig = TokenInitializeConfig {
@@ -27,47 +23,6 @@ storage {
     },
     minters: StorageMap<Address, bool> = StorageMap {},
     total_supply: u64 = 0u64,
-}
-
-abi PIDA {
-    // Initialize contract
-    #[storage(read, write)]
-    fn initialize(config: TokenInitializeConfig, owner: Address);
-
-    // mint tokens to self
-    #[storage(read, write)]
-    fn mint(amount: u64);
-
-    // mint tokens to specified address
-    #[storage(read, write)]
-    fn mint_to(account: Address, amount: u64);
-
-    // burn tokens
-    #[storage(read)]
-    fn burn(amount: u64);
-
-    // add minter
-    #[storage(read, write)]
-    fn add_minter(minter: Address);
-
-    // remove minter
-    #[storage(read, write)]
-    fn remove_minter(minter: Address) -> bool;
-
-    // Transfer coins to a given address
-    fn transfer(coins: u64, address: Address);
-
-    #[storage(read)]
-    fn total_supply() -> u64;
-
-    #[storage(read)]
-    fn decimals() -> u8;
-
-    #[storage(read)]
-    fn name() -> str[12];
-
-    #[storage(read)]
-    fn symbol() -> str[4];
 }
 
 enum Error {

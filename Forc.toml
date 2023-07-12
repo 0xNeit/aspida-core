@@ -1,2 +1,2 @@
 [workspace]
-members = ["PIDA", "./PIDA"]
+members = ["pida", "bonds-registry"]

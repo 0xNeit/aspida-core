@@ -2,7 +2,7 @@
 authors = ["Nate"]
 entry = "main.sw"
 license = "Apache-2.0"
-name = "pida"
+name = "bonds-registry"
 
 [dependencies]
-token_abi = { path = "../abi/token_abi" }
+token_abi = { path = "../abi/token_abi"}

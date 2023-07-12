@@ -1,0 +1,29 @@
+[[package]]
+name = 'bonds-registry'
+source = 'member'
+dependencies = [
+    'std',
+    'token_abi',
+]
+
+[[package]]
+name = 'core'
+source = 'path+from-root-9BFE6D5D0CBDF740'
+
+[[package]]
+name = 'pida'
+source = 'member'
+dependencies = [
+    'std',
+    'token_abi',
+]
+
+[[package]]
+name = 'std'
+source = 'git+https://github.com/fuellabs/sway?tag=v0.42.1#3b66f8e424bd21e3ba467783b10b36e808cfa6ee'
+dependencies = ['core']
+
+[[package]]
+name = 'token_abi'
+source = 'path+from-root-C073BF76170FB9E9'
+dependencies = ['std']
