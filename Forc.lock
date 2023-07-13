@@ -1,4 +1,9 @@
 [[package]]
+name = 'bond_teller'
+source = 'member'
+dependencies = ['std']
+
+[[package]]
 name = 'bonds-registry'
 source = 'member'
 dependencies = [
