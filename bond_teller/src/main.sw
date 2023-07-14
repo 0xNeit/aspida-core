@@ -1,25 +1,78 @@
 contract;
 
+mod events;
+mod structs;
+
 use std::storage::*;
 use std::constants::ZERO_B256;
 use std::address::*;
 use std::contract_id::*;
+use std::auth::{AuthError, msg_sender};
+use std::block::*;
 
-pub struct Bond {
-    payout_amount: u64,                  // amount of pida to be paid in total on the bond
-    payout_already_claimed: u64,         // amount of pida that has already been claimed on the bond
-    principal_paid: u64,                 // amount of principal paid for this bond
-    vesting_start: u64,                  // timestamp at which bond was minted
-    local_vesting_term: u64              // vesting term for this bond
+use events::*;
+
+use structs::*;
+
+pub enum Errors {
+    ZeroAddress: (),
+    CannotReinitialize: (),
+    NotInitialized: (),
+    NotOwner: (),
+    InvalidPrice: (),
+    InvalidDenom: (),
+    InvalidDate: (),
+    InvalidHalfLife: (),
+    InvalidFee: (),
+}
+
+pub enum State {
+    Initialized: (),
+    Uninitialized: (),
+}
+
+impl core::ops::Eq for State {
+    fn eq(self, other: Self) -> bool {
+        match (self, other) {
+            (State::Initialized, State::Initialized) => true,
+            (State::Uninitialized, State::Uninitialized) => true,
+            _ => false,
+        }
+    }
 }
 
 abi BondTeller {
-    
+    #[storage(read, write)]
+    fn initialize(
+        owner: Address,
+        pida: ContractId,
+        xp_locker: ContractId,
+        pool: ContractId,
+        dao: Address,
+        principal: ContractId,
+        bond_registry: ContractId,
+    );
+
+    #[storage(read, write)]
+    fn pause();
+
+    #[storage(read, write)]
+    fn unpause();
+
+    #[storage(write)]
+    fn set_terms(terms: Terms);
+
+    #[storage(read, write)]
+    fn set_fees(protocol_fee: u64);
 }
 
+
+
 storage {
-    name: str[32] = "                                ", // name of decay NFT
-    symbol: str[8] = "        ",                // symbol
+    state: State = State::Uninitialized,
+    owner: Address = Address {
+        value: ZERO_B256,
+    },
     // prices
     capacity: u64 = 0,                          // capacity remaining for all bonds
     next_price: u64 = 0,                        // the price of the next bond before decay
@@ -65,9 +118,7 @@ storage {
     },                                          // the bond registry
 }
 
-pub enum Error {
-    ZeroAddress: (),
-}
+
 
 const MAX_BPS: u64 = 10000; // 10k basis points (100%)
 
@@ -90,36 +141,142 @@ fn set_addresses(
     principal: ContractId,
     bond_registry: ContractId
 ) {
-    require(pida != ContractId::from(ZERO_B256), Error::ZeroAddress);
-    require(xp_locker != ContractId::from(ZERO_B256), Error::ZeroAddress);
-    require(pool != ContractId::from(ZERO_B256), Error::ZeroAddress);
-    require(dao != Address::from(ZERO_B256) , Error::ZeroAddress);
-    require(principal != ContractId::from(ZERO_B256), Error::ZeroAddress);
-    require(bond_registry != ContractId::from(ZERO_B256), Error::ZeroAddress);
-    storage.pida.write(pida);
-    storage.xp_locker.write(xp_locker);
-    storage.underwriting_pool.write(pool);
-    storage.dao.write(dao);
-    storage.principal.write(principal);
-    storage.bond_registry.write(bond_registry);
+    require(pida != ContractId::from(ZERO_B256), Errors::ZeroAddress);
+    require(xp_locker != ContractId::from(ZERO_B256), Errors::ZeroAddress);
+    require(pool != ContractId::from(ZERO_B256), Errors::ZeroAddress);
+    require(dao != Address::from(ZERO_B256) , Errors::ZeroAddress);
+    require(principal != ContractId::from(ZERO_B256), Errors::ZeroAddress);
+    require(bond_registry != ContractId::from(ZERO_B256), Errors::ZeroAddress);
+    storage.pida = pida;
+    storage.xp_locker = xp_locker;
+    storage.underwriting_pool = pool;
+    storage.dao = dao;
+    storage.principal = principal;
+    storage.bond_registry = bond_registry;
+}
+
+pub fn get_msg_sender_address_or_panic() -> Address {
+    let sender: Result<Identity, AuthError> = msg_sender();
+    if let Identity::Address(address) = sender.unwrap() {
+        address
+    } else {
+        revert(0);
+    }
+}
+
+#[storage(read)]
+fn validate_owner() {
+    let sender = get_msg_sender_address_or_panic();
+    require(storage.owner == sender, Errors::NotOwner);
 }
 
 
 impl BondTeller for Contract {
-    /*#[storage(read, write)]
+    /**
+     * @notice Initializes the teller.
+     * @param owner The address of the owner.
+     * @param pida The PIDA token.
+     * @param xp_locker The xpLocker contract.
+     * @param pool The underwriting pool.
+     * @param dao The DAO.
+     * @param principal The token that users deposit.
+     * @param bond_registry The bond depository.
+    */
+    #[storage(read, write)]
     fn initialize(
-        name: str[32],
         owner: Address,
         pida: ContractId,
         xp_locker: ContractId,
         pool: ContractId,
-        dao: ContractId,
+        dao: Address,
         principal: ContractId,
         bond_registry: ContractId,
     ) {
-        storage.name.write(name);
-        storage.pida.write(pida);
-        storage.xp_locker.write(xp_locker);
-        storage.pool
-    }*/
+        require(storage.state == State::Uninitialized, Errors::CannotReinitialize);
+        set_addresses(pida, xp_locker, pool, dao, principal, bond_registry);
+        storage.state = State::Initialized;
+        storage.owner = owner;
+    }
+
+    /***************************************
+    VIEW FUNCTIONS
+    ***************************************/
+
+    /***************************************
+    GOVERNANCE FUNCTIONS
+    ***************************************/
+
+    /**
+     * @notice Pauses deposits.
+     * Can only be called by the current owner.
+    */
+    #[storage(read, write)]
+    fn pause() {
+        validate_owner();
+        storage.paused = true;
+        log (
+            Paused {}
+        );
+    }
+
+    /**
+     * @notice Unpauses deposits.
+     * Can only be called by the current owner.
+    */
+    #[storage(read, write)]
+    fn unpause() {
+        validate_owner();
+        storage.paused = false;
+        log(
+            Unpaused {}
+        );
+    }
+
+    /**
+     * @notice Sets the bond terms.
+     * Can only be called by the current owner.
+     * @param terms The terms of the bond.
+    */
+    #[storage(write)]
+    fn set_terms(terms: Terms) {
+        require(terms.start_price > 0, Errors::InvalidPrice);
+        storage.next_price = terms.start_price;
+        storage.minimum_price = terms.minimum_price;
+        storage.max_payout = terms.max_payout;
+
+        require(terms.price_adj_denom != 0, Errors::InvalidDenom);
+        storage.price_adj_num = terms.price_adj_num;
+        storage.price_adj_denom = terms.price_adj_denom;
+        storage.capacity = terms.capacity;
+        storage.capacity_is_payout = terms.capacity_is_payout;
+
+        require(terms.start_time <= terms.end_time, Errors::InvalidDate);
+        storage.start_time = terms.start_time;
+        storage.end_time = terms.end_time;
+        storage.global_vesting_term = terms.global_vesting_term;
+
+        require(terms.half_life > 0, Errors::InvalidHalfLife);
+        storage.half_life = terms.half_life;
+        storage.terms_set = true;
+        storage.last_price_update = timestamp();
+
+        log (
+            TermsSet {}
+        );
+    }
+
+    /**
+     * @notice Sets the bond fees.
+     * @param protocolFee The fraction of `principal` that will be sent to the dao measured in BPS.
+    */
+    #[storage(read, write)]
+    fn set_fees(protocol_fee: u64) {
+        validate_owner();
+        require(protocol_fee <= MAX_BPS, Errors::InvalidFee);
+        storage.protocol_fee_bps = protocol_fee;
+
+        log(
+            FeesSet {}
+        );
+    }
 }

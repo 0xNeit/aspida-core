@@ -49,7 +49,7 @@ pub fn get_msg_sender_address_or_panic() -> Address {
 */
 #[storage(read)]
 fn is_minter(account: Address) -> bool {
-    let answer = storage.minters.get(account).read();
+    let answer = storage.minters.get(account).unwrap();
     answer
 }
 
@@ -58,14 +58,14 @@ fn is_minter(account: Address) -> bool {
 */
 #[storage(read)]
 fn balance_of(account: Address) -> u64 {
-    let balance = storage.balances.get(account).read();
+    let balance = storage.balances.get(account).unwrap();
     balance
 }
 
 #[storage(read)]
 fn validate_owner() {
     let sender = get_msg_sender_address_or_panic();
-    require(storage.owner.read() == sender, Error::NotOwner);
+    require(storage.owner == sender, Error::NotOwner);
 }
 
 impl PIDA for Contract {
@@ -74,9 +74,9 @@ impl PIDA for Contract {
     //////////////////////////////////////
     #[storage(read, write)]
     fn initialize(config: TokenInitializeConfig, owner: Address) {
-        require(storage.owner.value.read() == ZERO_B256, Error::CannotReinitialize);
-        storage.owner.write(owner);
-        storage.config.write(config);
+        require(storage.owner.value == ZERO_B256, Error::CannotReinitialize);
+        storage.owner = owner;
+        storage.config = config;
     }
 
     //////////////////////////////////////
@@ -91,7 +91,7 @@ impl PIDA for Contract {
         require(minter == true, Error::NotMinter);
         // mint
         mint_to_address(amount, sender);
-        storage.total_supply.write(storage.total_supply.read() + amount);
+        storage.total_supply = (storage.total_supply + amount);
     }
     /**
      * @notice Mints new PIDA to the receiver account.
@@ -108,7 +108,7 @@ impl PIDA for Contract {
         require(minter == true, Error::NotMinter);
         // mint
         mint_to_address(amount, account);
-        storage.total_supply.write(storage.total_supply.read() + amount);
+        storage.total_supply = (storage.total_supply + amount);
     }
 
     /**
@@ -150,21 +150,21 @@ impl PIDA for Contract {
 
     #[storage(read)]
     fn total_supply() -> u64 {
-        storage.total_supply.read()
+        storage.total_supply
     }
 
     #[storage(read)]
     fn decimals() -> u8 {
-        storage.config.decimals.read()
+        storage.config.decimals
     }
 
     #[storage(read)]
     fn name() -> str[12] {
-        storage.config.name.read()
+        storage.config.name
     }
 
     #[storage(read)]
     fn symbol() -> str[4] {
-        storage.config.symbol.read()
+        storage.config.symbol
     }
 }
