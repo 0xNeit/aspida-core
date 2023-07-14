@@ -2,7 +2,6 @@
 authors = ["Nate"]
 entry = "main.sw"
 license = "Apache-2.0"
-name = "bond_teller"
+name = "xp_locker"
 
 [dependencies]
-bond_registry_abi = { path = "../abi/bond_registry_abi" }

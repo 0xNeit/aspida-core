@@ -1,12 +1,21 @@
 [[package]]
+name = 'bond_registry_abi'
+source = 'path+from-root-8D2BF65ED81619DA'
+dependencies = ['std']
+
+[[package]]
 name = 'bond_teller'
 source = 'member'
-dependencies = ['std']
+dependencies = [
+    'bond_registry_abi',
+    'std',
+]
 
 [[package]]
 name = 'bonds-registry'
 source = 'member'
 dependencies = [
+    'bond_registry_abi',
     'std',
     'token_abi',
 ]
@@ -31,4 +40,9 @@ dependencies = ['core']
 [[package]]
 name = 'token_abi'
 source = 'path+from-root-C073BF76170FB9E9'
+dependencies = ['std']
+
+[[package]]
+name = 'xp_locker'
+source = 'member'
 dependencies = ['std']

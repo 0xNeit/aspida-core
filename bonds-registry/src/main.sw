@@ -7,20 +7,7 @@ use std::storage::*;
 use std::auth::{AuthError, msg_sender};
 
 use token_abi::*;
-
-abi BondsRegistry {
-    #[storage(read, write)]
-    fn initialize(owner: Address, pida: ContractId);
-
-    #[storage(read, write)]
-    fn add_teller(teller: Address);
-
-    #[storage(read, write)]
-    fn remove_teller(teller: Address) -> bool;
-
-    #[storage(read)]
-    fn pull_pida(amount: u64);
-}
+use bond_registry_abi::*;
 
 storage {
     pida: ContractId = ContractId {
