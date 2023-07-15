@@ -21,17 +21,3 @@ pub struct Terms {
     global_vesting_term: u64, // The duration that users must wait to redeem bonds.
     half_life: u64,          // Used to calculate price decay.
 }
-
-pub struct TokenMetadata {
-    name: str[17],
-    symbol: str[3],
-}
-
-impl TokenMetadata {
-    pub fn new() -> Self {
-        Self {
-            name: "Aspida Bond Token",
-            symbol: "ABT",
-        }
-    }
-}

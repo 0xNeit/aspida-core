@@ -5,3 +5,8 @@ license = "Apache-2.0"
 name = "xp_locker"
 
 [dependencies]
+token_abi = { path = "../abi/token_abi" }
+locker_abi = { path = "../abi/locker_abi" }
+libraries = { path = "../libraries" }
+nft = { git = "https://github.com/FuelLabs/sway-libs", tag = "v0.8.0" }
+reentrancy = { git = "https://github.com/FuelLabs/sway-libs", tag = "v0.8.0" }

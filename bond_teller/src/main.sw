@@ -13,6 +13,15 @@ use std::block::*;
 use events::*;
 
 use structs::*;
+use bond_registry_abi::BondsRegistry;
+use locker_abi::Locker;
+
+use nft::{
+    mint,
+    tokens_minted,
+};
+
+use nft::extensions::token_metadata::*;
 
 pub enum Errors {
     AtCapacity: (),
@@ -45,6 +54,20 @@ impl core::ops::Eq for State {
             (State::Initialized, State::Initialized) => true,
             (State::Uninitialized, State::Uninitialized) => true,
             _ => false,
+        }
+    }
+}
+
+pub struct BondMeta {
+    name: str[17],
+    symbol: str[3],
+}
+
+impl BondMeta {
+    pub fn new() -> Self {
+        Self {
+            name: "Aspida Bond Token",
+            symbol: "ABT",
         }
     }
 }
@@ -141,18 +164,20 @@ const MAX_BPS: u64 = 10000; // 10k basis points (100%)
     * @return tokenID The ID of the newly created bond or lock.
     * @return protocolFee Amount of principal paid to dao
 */
-/*fn deposit(
+#[storage(read, write)]
+fn deposit(
     amount: u64,
     min_amount_out: u64,
-    depositor: Address,
+    depositor: Identity,
     stake: bool,
 ) -> (u64, u64, u64) {
-    require(depositor != Address::from(ZERO_B256), Errors::ZeroAddress);
     require(!storage.paused, Errors::Paused);
 
     require(storage.terms_set, Errors::NotInitialized);
     require(timestamp() >= storage.start_time, Errors::NotStarted);
     require(timestamp() <= storage.end_time, Errors::Concluded);
+
+    let mut token_id = 0;
 
     let payout = calculate_total_payout(amount);
 
@@ -164,7 +189,7 @@ const MAX_BPS: u64 = 10000; // 10k basis points (100%)
         storage.capacity = cap - payout;
     } else {
         // capacity in principal terms
-        cap = storage.capacity;
+        let cap = storage.capacity;
         require(cap >= amount, Errors::AtCapacity);
         storage.capacity = cap - amount;
     }
@@ -172,33 +197,53 @@ const MAX_BPS: u64 = 10000; // 10k basis points (100%)
     require(payout <= storage.max_payout, Errors::BondTooLarge);
     require(min_amount_out <= payout, Errors::Slippage);
 
-    // route solace
-    resistry_abi = abi(BondsRegistry, storage.bond_registry.value);
-    registry_abi.pull_pida(payout);
+    let protocol_fee = amount * storage.protocol_fee_bps / MAX_BPS;
+
+    let gvt = storage.global_vesting_term;
+    let xlv = storage.xp_locker.value;
+    let nb = storage.num_bonds;
+
+    // route pida
+    let registry_abi = abi(BondsRegistry, storage.bond_registry.value);
 
     // optionally stake
     if(stake) {
-        let locker_abi = abi(Locker, storage.xp_locker.value);
-        let token_id = locker_abi.create_lock(depositor, payout, (timestamp() + storage.global_vesting_term))
+        let locker_abi = abi(Locker, xlv);
+        token_id = locker_abi.create_lock(depositor, payout, (timestamp() + gvt));
     } else {
         // record bond info
-        let token_id = storage.num_bonds + 1;
+        token_id = nb + 1;
         let vesting_start = timestamp();
-        let vesting_term = storage.global_vesting_term;
-          bonds[tokenID] = Bond({
-              payoutAmount: payout,
-              payoutAlreadyClaimed: 0,
-              principalPaid: amount,
-              vestingStart: vestingStart,
-              localVestingTerm: vestingTerm
-          });
-          _mint(depositor, tokenID);
-          emit CreateBond(tokenID, amount, payout, vestingStart, vestingTerm);
-        }
+        let vesting_term = gvt;
 
-        protocolFee = amount * protocolFeeBps / MAX_BPS;
-        return (payout, tokenID, protocolFee);
-}*/
+        let new_bond = Bond {
+            payout_amount: payout,
+            payout_already_claimed: 0,
+            principal_paid: amount,
+            vesting_start: vesting_start,
+            local_vesting_term: vesting_term
+        };
+
+        storage.bonds.insert(token_id, new_bond);
+        mint(1, depositor);
+
+        // let mut token_id = tokens_minted() - amount;
+        set_token_metadata(Option::Some(BondMeta::new()), token_id);
+        registry_abi.pull_pida(payout);
+
+        log (
+            CreateBond {
+                lock_id: token_id,
+                principal_amount: amount,
+                payout_amount: payout, 
+                vesting_start: vesting_start,
+                vesting_time: vesting_term
+            }
+        )
+    }
+
+    (payout, token_id, protocol_fee)
+}
 /**
     * @notice Sets the addresses to call out in storage.
     * Can only be called by the current Owner.

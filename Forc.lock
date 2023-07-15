@@ -8,6 +8,9 @@ name = 'bond_teller'
 source = 'member'
 dependencies = [
     'bond_registry_abi',
+    'libraries',
+    'locker_abi',
+    'nft',
     'std',
 ]
 
@@ -25,12 +28,32 @@ name = 'core'
 source = 'path+from-root-67732E1923984E25'
 
 [[package]]
+name = 'libraries'
+source = 'path+from-root-8D2BF65ED81619DA'
+dependencies = ['std']
+
+[[package]]
+name = 'locker_abi'
+source = 'path+from-root-8D2BF65ED81619DA'
+dependencies = ['std']
+
+[[package]]
+name = 'nft'
+source = 'git+https://github.com/FuelLabs/sway-libs?tag=v0.8.0#f6bb5c234e020d556e1bc688e0f1f368dc9b0f9a'
+dependencies = ['std']
+
+[[package]]
 name = 'pida'
 source = 'member'
 dependencies = [
     'std',
     'token_abi',
 ]
+
+[[package]]
+name = 'reentrancy'
+source = 'git+https://github.com/FuelLabs/sway-libs?tag=v0.8.0#f6bb5c234e020d556e1bc688e0f1f368dc9b0f9a'
+dependencies = ['std']
 
 [[package]]
 name = 'std'
@@ -45,4 +68,11 @@ dependencies = ['std']
 [[package]]
 name = 'xp_locker'
 source = 'member'
-dependencies = ['std']
+dependencies = [
+    'libraries',
+    'locker_abi',
+    'nft',
+    'reentrancy',
+    'std',
+    'token_abi',
+]
