@@ -12,7 +12,7 @@ pub struct CreateBond {
 /// @notice Emitted when a bond is redeemed.
 pub struct RedeemBond {
     bond_id: u64,
-    recipient: Address,
+    recipient: Identity,
     payout_amount: u64
 }
 

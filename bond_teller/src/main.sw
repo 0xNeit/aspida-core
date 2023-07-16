@@ -7,8 +7,9 @@ use std::storage::*;
 use std::constants::ZERO_B256;
 use std::address::*;
 use std::contract_id::*;
-use std::auth::{AuthError, msg_sender};
+use std::auth::*;
 use std::block::*;
+use std::token::*;
 
 use events::*;
 
@@ -16,10 +17,17 @@ use structs::*;
 use bond_registry_abi::BondsRegistry;
 use locker_abi::Locker;
 
+use reentrancy::*;
+
 use nft::{
+    approved,
+    is_approved_for_all,
     mint,
+    owner_of,
     tokens_minted,
 };
+
+use nft::extensions::burnable::*;
 
 use nft::extensions::token_metadata::*;
 
@@ -28,6 +36,7 @@ pub enum Errors {
     BondTooLarge: (),
     CannotReinitialize: (),
     Concluded: (),
+    NotBonder: (),
     NotInitialized: (),
     NotOwner: (),
     NotStarted: (),
@@ -40,7 +49,8 @@ pub enum Errors {
     InsufficientAmount: (),
     Paused: (),
     Slippage: (),
-    ZeroAddress: (), 
+    ZeroAddress: (),
+    ZeroPrice: (), 
 }
 
 pub enum State {
@@ -83,6 +93,26 @@ abi BondTeller {
         principal: ContractId,
         bond_registry: ContractId,
     );
+
+    #[storage(read)]
+    fn bond_price() -> u64;
+
+    #[storage(read)]
+    fn calculate_amount_out(amount_in: u64, stake: bool) -> u64;
+
+    #[storage(read)]
+    fn calculate_amount_in(amount_out: u64, _stake: bool) -> u64;
+
+    #[storage(read, write)]
+    fn deposit(
+        amount: u64,
+        min_amount_out: u64,
+        depositor: Identity,
+        stake: bool
+    ) -> (u64, u64);
+
+    #[storage(read, write)]
+    fn claim_payout(bond_id: u64);
 
     #[storage(read, write)]
     fn pause();
@@ -158,14 +188,14 @@ const MAX_BPS: u64 = 10000; // 10k basis points (100%)
     * @notice Create a bond by depositing `amount` of `principal`.
     * @param amount Amount of principal to deposit.
     * @param minAmountOut The minimum PIDA out.
-    * @param depositor The bond recipient, default msg.sender.
+    * @param depositor The bond recipient, default msg_sender().
     * @param stake True to stake, false to not stake.
     * @return payout The amount of PIDA in the bond.
     * @return tokenID The ID of the newly created bond or lock.
     * @return protocolFee Amount of principal paid to dao
 */
 #[storage(read, write)]
-fn deposit(
+fn _deposit(
     amount: u64,
     min_amount_out: u64,
     depositor: Identity,
@@ -301,6 +331,17 @@ fn set_addresses(
     storage.bond_registry = bond_registry_store;
 }
 
+#[storage(read)]
+fn _bond_price() -> u64 {
+    let time_since_last = timestamp() - storage.last_price_update;
+    let mut price = exponential_decay(storage.next_price, time_since_last);
+    if (price < storage.minimum_price) {
+        price = storage.minimum_price;
+    };
+
+    price
+}
+
 pub fn get_msg_sender_address_or_panic() -> Address {
     let sender: Result<Identity, AuthError> = msg_sender();
     if let Identity::Address(address) = sender.unwrap() {
@@ -321,7 +362,7 @@ fn validate_owner() {
     * @param depositAmount The amount of `principal` to deposit.
     * @return amountOut The amount of PIDA out.
 */
-#[storage(read)]
+#[storage(read, write)]
 fn calculate_total_payout(deposit_amount: u64) -> u64 {
     // calculate this price
     let time_since_last = timestamp() - storage.last_price_update;
@@ -362,6 +403,46 @@ fn calculate_eligible_payout(bond_id: u64) -> u64 {
     eligible_payout   
 }
 
+#[storage(read)]
+fn _calculate_amount_in(amount_out: u64, _stake: bool) -> u64 {
+    require(storage.terms_set, Errors::NotInitialized);
+    // exchange rate
+    let bond_price = _bond_price();
+    require(bond_price > 0, Errors::ZeroPrice);
+    let amount_in = amount_out * bond_price / 1000000000;
+    // ensure there is remaining capacity for bond
+    if (storage.capacity_is_payout) {
+        // capacity in payout terms
+        require(storage.capacity >= amount_out, Errors::AtCapacity);
+    } else {
+        // capacity in principal terms
+        require(storage.capacity >= amount_in, Errors::AtCapacity);
+    }
+    require(amount_out <= storage.max_payout, Errors::BondTooLarge);
+        
+    amount_in
+}
+
+#[storage(read)]
+fn _calculate_amount_out(amount_in: u64, _stake: bool) -> u64 {
+    require(storage.terms_set, Errors::NotInitialized);
+    // exchange rate
+    let bond_price = _bond_price();
+    require(bond_price > 0, Errors::ZeroPrice);
+    let amount_out = 1000000000 * amount_in / bond_price; //
+    // ensure there is remaining capacity for bond
+    if (storage.capacity_is_payout) {
+        // capacity in payout terms
+        require(storage.capacity >= amount_out, Errors::AtCapacity);
+    } else {
+        // capacity in principal terms
+        require(storage.capacity >= amount_in, Errors::AtCapacity);
+    }
+    require(amount_out <= storage.max_payout, Errors::BondTooLarge);
+
+    amount_out
+}
+
 /**
     * @notice Calculates exponential decay.
     * @dev Linear approximation, trades precision for speed.
@@ -374,6 +455,41 @@ fn exponential_decay(init_value: u64, time: u64) -> u64 {
     let mut end_value = init_value >> (time / storage.half_life);
     end_value -= end_value * (time % storage.half_life) / storage.half_life / 2;
     end_value
+}
+
+/**
+    * @dev Returns whether `token_id` exists.
+    * Tokens start existing when they are minted,
+    * and stop existing when they are burned.
+*/
+#[storage(read)]
+fn exists(token_id: u64) -> bool {
+    let owner = owner_of(token_id);
+    let mut state = false;
+    if (owner.is_none()) {
+        state = false;
+    } else {
+        state = true;
+    }
+    state
+}
+
+/**
+    * @dev Returns whether `spender` is allowed to manage `tokenId`.
+    *
+    * Requirements:
+    *
+    * - `tokenId` must exist.
+*/
+#[storage(read)]
+fn is_approved_or_owner(spender: Identity, token_id: u64) -> bool {
+    let owner = owner_of(token_id).unwrap();
+    (spender == owner || is_approved_for_all(spender, owner) || approved(token_id).unwrap() == spender)
+}
+
+#[storage(read)]
+fn token_exists(token_id: u64) {
+    require(exists(token_id) == true, Errors::NotInitialized);
 }
 
 
@@ -408,7 +524,129 @@ impl BondTeller for Contract {
     VIEW FUNCTIONS
     ***************************************/
 
-    
+    // BOND PRICE
+
+    /**
+     * @notice Calculate the current price of a bond.
+     * Assumes 1 PIDA payout.
+     * @return price The price of the bond measured in `principal`.
+    */
+    #[storage(read)]
+    fn bond_price() -> u64 {
+        _bond_price()
+    }
+
+    /**
+     * @notice Calculate the amount of PIDA out for an amount of `principal`.
+     * @param amount_in Amount of principal to deposit.
+     * @param stake True to stake, false to not stake.
+     * @return amount_out Amount of PIDA out.
+    */
+    #[storage(read)]
+    fn calculate_amount_out(amount_in: u64, _stake: bool) -> u64 {
+        _calculate_amount_out(amount_in, _stake)
+    }
+
+    /**
+     * @notice Calculate the amount of `principal` in for an amount of PIDA out.
+     * @param amount_out Amount of PIDA out.
+     * @param stake True to stake, false to not stake.
+     * @return amount_in Amount of principal to deposit.
+     */
+    #[storage(read)]
+    fn calculate_amount_in(amount_out: u64, _stake: bool) -> u64 {
+        _calculate_amount_in(amount_out, _stake)
+    }
+
+    /***************************************
+    BONDER FUNCTIONS
+    ***************************************/
+
+    /**
+     * @notice Create a bond by depositing `amount` of `principal`.
+     * Principal will be transferred from `msg_sender()` using `allowance`.
+     * @param amount Amount of principal to deposit.
+     * @param min_amount_out The minimum PIDA out.
+     * @param depositor The bond recipient, default msg_sender().
+     * @param stake True to stake, false to not stake.
+     * @return payout The amount of PIDA in the bond.
+     * @return token_id The ID of the newly created bond or lock.
+    */
+    #[storage(read, write)]
+    fn deposit(
+        amount: u64,
+        min_amount_out: u64,
+        depositor: Identity,
+        stake: bool
+    ) -> (u64, u64) {
+        let principal_id = ContractId::from(get::<b256>(storage.principal.value).unwrap());
+        let dao_address = storage.dao;
+        let pool = Identity::ContractId(storage.underwriting_pool);
+        // accounting
+        let (payout, token_id, protocol_fee) = _deposit(
+            amount, 
+            min_amount_out, 
+            depositor, 
+            stake
+        );
+        // route principal - put last as Checks-Effects-Interactions
+        if (protocol_fee > 0) {
+            transfer_to_address(
+                protocol_fee,
+                principal_id,
+                dao_address
+            );
+        };
+
+        let actual_amount = amount - protocol_fee;
+
+        transfer(
+            actual_amount,
+            principal_id,
+            pool
+        );
+
+        (payout, token_id)
+    }
+
+    /**
+     * @notice Claim payout for a bond that the user holds.
+     * User calling `claim_payout()`` must be either the owner or approved for the entered bond_id.
+     * @param bond_id The ID of the bond to redeem.
+    */
+    #[storage(read, write)]
+    fn claim_payout(bond_id: u64) {
+        token_exists(bond_id);
+        // checks
+        let sender = msg_sender().unwrap();
+        require(is_approved_or_owner(sender, bond_id), Errors::NotBonder);
+
+        // Payout as per vesting terms
+        let mut bond = storage.bonds.get(bond_id).unwrap();
+        let eligible_payout = calculate_eligible_payout(bond_id);
+
+        bond.payout_already_claimed += eligible_payout;
+        let deleted_meta: Option<BondMeta> = Option::None;
+
+        // Burn bond if vesting completed
+        if (timestamp() > bond.vesting_start + bond.local_vesting_term) {
+            burn(bond_id);
+            set_token_metadata(deleted_meta, bond_id);
+            storage.bonds.remove(bond_id);
+        }
+        log(
+            RedeemBond{
+                bond_id: bond_id, 
+                recipient: sender, 
+                payout_amount: eligible_payout
+            }
+        );
+
+        let pida_id = ContractId::from(get::<b256>(storage.pida.value).unwrap());
+
+        // Place token tranasfer last as per Checks-Effects-Interactions
+        transfer(eligible_payout, pida_id, sender);
+    }
 
     /***************************************
     GOVERNANCE FUNCTIONS
@@ -421,8 +659,10 @@ impl BondTeller for Contract {
     #[storage(read, write)]
     fn pause() {
         validate_owner();
-        storage.paused = true;
-        log (
+        let mut paused_state = storage.paused;
+        paused_state = true;
+        storage.paused = paused_state;
+        log(
             Paused {}
         );
     }
@@ -434,7 +674,9 @@ impl BondTeller for Contract {
     #[storage(read, write)]
     fn unpause() {
         validate_owner();
-        storage.paused = false;
+        let mut paused_state = storage.paused;
+        paused_state = false;
+        storage.paused = paused_state;
         log(
             Unpaused {}
         );

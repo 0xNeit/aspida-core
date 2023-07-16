@@ -21,6 +21,8 @@ use events::*;
 use token_abi::PIDA;
 use locker_abi::Locker;
 
+use reentrancy::*;
+
 pub struct Lock {
     amount: u64,
     end: u64,
@@ -132,6 +134,7 @@ impl Locker for Contract {
         amount: u64, 
         end: u64
     ) -> u64 {
+        reentrancy_guard();
         let sender = get_msg_sender_address_or_panic();
         // pull pida
         transfer_to_address(

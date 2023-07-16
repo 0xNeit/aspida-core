@@ -9,3 +9,4 @@ bond_registry_abi = { path = "../abi/bond_registry_abi" }
 locker_abi = { path = "../abi/locker_abi" }
 libraries = { path = "../libraries" }
 nft = { git = "https://github.com/FuelLabs/sway-libs", tag = "v0.8.0" }
+reentrancy = { git = "https://github.com/FuelLabs/sway-libs", tag = "v0.8.0" }
