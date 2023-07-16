@@ -29,6 +29,7 @@ pub struct Lock {
 }
 
 pub enum Errors {
+    NotInitialized: (),
     ZeroAddress: (),
     ExceedMaxLock: (),
 }
@@ -88,7 +89,9 @@ fn _create_lock(
         xp_lock_id += 1;
     }
     storage.locks.insert(xp_lock_id, new_lock);
-    storage.total_num_locks = xp_lock_id;
+    let mut tnl = storage.total_num_locks;
+    tnl = xp_lock_id;
+    storage.total_num_locks = tnl;
 
     log(
         LockCreated {
@@ -109,10 +112,13 @@ pub fn get_msg_sender_address_or_panic() -> Address {
 
 impl Locker for Contract {
 
-    #[storage(write)]
+    #[storage(read, write)]
     fn initialize(owner: Address, pida: ContractId) {
         require(pida != ContractId::from(ZERO_B256), Errors::ZeroAddress);
+        require(owner != Address::from(ZERO_B256), Errors::ZeroAddress);
+        require(storage.owner == Address::from(ZERO_B256), Errors::NotInitialized);
         storage.pida = pida;
+        storage.owner = owner;
     }
 
     /***************************************

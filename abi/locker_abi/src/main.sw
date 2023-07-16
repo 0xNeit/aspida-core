@@ -1,7 +1,7 @@
 library;
 
 abi Locker {
-    #[storage(write)]
+    #[storage(read, write)]
     fn initialize(owner: Address, pida: ContractId);
 
     #[storage(read, write)]

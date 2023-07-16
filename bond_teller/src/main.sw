@@ -632,7 +632,7 @@ impl BondTeller for Contract {
         if (timestamp() > bond.vesting_start + bond.local_vesting_term) {
             burn(bond_id);
             set_token_metadata(deleted_meta, bond_id);
-            storage.bonds.remove(bond_id);
+            let _ = storage.bonds.remove(bond_id);
         }
         log(
             RedeemBond{
