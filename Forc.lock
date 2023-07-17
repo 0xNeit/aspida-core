@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [[package]]
-name = 'bonds-registry'
+name = 'bonds_registry'
 source = 'member'
 dependencies = [
     'bond_registry_abi',
@@ -63,7 +63,7 @@ dependencies = ['core']
 
 [[package]]
 name = 'token_abi'
-source = 'path+from-root-C073BF76170FB9E9'
+source = 'path+from-root-4154CF0C5574A2C3'
 dependencies = ['std']
 
 [[package]]
