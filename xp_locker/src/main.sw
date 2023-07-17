@@ -33,6 +33,7 @@ pub struct Lock {
 
 pub enum Errors {
     NotInitialized: (),
+    NotOwner: (),
     OutOfBounds: (),
     ZeroAddress: (),
     ExceedMaxLock: (),
@@ -59,6 +60,8 @@ storage {
     locks: StorageMap<u64, Lock> = StorageMap {},
     owned_tokens: StorageMap<Address, IndexMap> = StorageMap {},
     xp_lock_listeners: StorageVec<ContractId> = StorageVec {},
+    listeners_map: StorageMap<ContractId, u64> = StorageMap {},
+    base_uri: str[32] = "                                ",
 }
 
 const MAX_LOCK_DURATION: u64 = 126_144_000;
@@ -128,6 +131,12 @@ pub fn get_msg_sender_address_or_panic() -> Address {
     } else {
         revert(0);
     }
+}
+
+#[storage(read)]
+fn validate_owner() {
+    let sender = get_msg_sender_address_or_panic();
+    require(storage.owner == sender, Errors::NotOwner);
 }
 
 #[storage(read)]
@@ -286,5 +295,64 @@ impl Locker for Contract {
         let new_lock = _create_lock(recipient, amount, end);
         
         new_lock
+    }
+
+    /***************************************
+    GOVERNANCE FUNCTIONS
+    ***************************************/
+
+    /**
+     * @notice Adds a listener.
+     * Can only be called by the current owner.
+     * @param listener The listener to add.
+    */
+    #[storage(read, write)]
+    fn add_xp_lock_listener(listener: ContractId) {
+        validate_owner();
+        let index = storage.xp_lock_listeners.len();
+        storage.xp_lock_listeners.push(listener);
+
+        storage.listeners_map.insert(listener, index);
+
+        log(
+            XpLockListenerAdded {
+                listener: listener
+            }
+        );
+    }
+
+    /**
+     * @notice Removes a listener.
+     * Can only be called by the current owner.
+     * @param listener The listener to remove.
+    */
+    #[storage(read, write)]
+    fn remove_xp_lock_listener(listener: ContractId) -> bool {
+        validate_owner();
+
+        let listener_index = storage.listeners_map.get(listener).unwrap();
+        let removed_listener = storage.xp_lock_listeners.remove(listener_index);
+        let removed_map = storage.listeners_map.remove(removed_listener);
+        
+        log(
+            XpLockListenerRemoved {
+                listener: removed_listener
+            }
+        );
+
+        removed_map
+    }
+
+    /**
+     * @notice Sets the base URI for computing `tokenURI`.
+     * Can only be called by the current owner.
+     * @param baseURI The new base URI.
+    */
+    #[storage(read, write)]
+    fn set_base_uri(base_uri: str[32]) {
+        validate_owner();
+        let mut uri = storage.base_uri;
+        uri = base_uri;
+        storage.base_uri = uri;
     }  
 }

@@ -10,4 +10,13 @@ abi Locker {
         amount: u64, 
         end: u64
     ) -> u64;
+
+    #[storage(read, write)]
+    fn add_xp_lock_listener(listener: ContractId);
+
+    #[storage(read, write)]
+    fn remove_xp_lock_listener(listener: ContractId) -> bool;
+
+    #[storage(read, write)]
+    fn set_base_uri(base_uri: str[32]);
 }
