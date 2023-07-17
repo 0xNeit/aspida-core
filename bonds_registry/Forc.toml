@@ -5,5 +5,5 @@ license = "Apache-2.0"
 name = "bonds_registry"
 
 [dependencies]
-token_abi = { path = "../abi/token_abi" }
-bond_registry_abi = { path = "../abi/bond_registry_abi" }
+token_abi = { path = "../abis/token_abi" }
+bond_registry_abi = { path = "../abis/bond_registry_abi" }

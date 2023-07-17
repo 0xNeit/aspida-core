@@ -2,7 +2,6 @@
 authors = ["Nate"]
 entry = "main.sw"
 license = "Apache-2.0"
-name = "pida"
+name = "staking"
 
 [dependencies]
-token_abi = { path = "../abis/token_abi" }
