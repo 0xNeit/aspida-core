@@ -1,2 +1,2 @@
 [workspace]
-members = ["pida", "bonds_registry", "bond_teller", "xp_locker", "staking"]
+members = ["pida", "bonds_registry", "bond_teller", "xp_locker", "staking", "registry"]

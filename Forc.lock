@@ -57,6 +57,11 @@ source = 'git+https://github.com/FuelLabs/sway-libs?tag=v0.8.0#f6bb5c234e020d556
 dependencies = ['std']
 
 [[package]]
+name = 'registry'
+source = 'member'
+dependencies = ['std']
+
+[[package]]
 name = 'staking'
 source = 'member'
 dependencies = ['std']
