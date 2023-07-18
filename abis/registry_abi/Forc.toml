@@ -2,7 +2,6 @@
 authors = ["Nate"]
 entry = "main.sw"
 license = "Apache-2.0"
-name = "registry"
+name = "registry_abi"
 
 [dependencies]
-registry_abi = { path = "../abis/registry_abi" }

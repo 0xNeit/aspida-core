@@ -4,6 +4,8 @@ use std::constants::ZERO_B256;
 use std::assert::*;
 use std::auth::*;
 
+use registry_abi::Registry;
+
 pub struct RegistryEntry {
     index: u64,
     value: ContractId,
@@ -11,13 +13,13 @@ pub struct RegistryEntry {
 
 /// Emitted when a record is set.
 pub struct RecordSet {
-    key: str[32], 
+    key: str[20], 
     value: ContractId,
 }
 
 storage {
-    ids: StorageMap<str[32], RegistryEntry> = StorageMap {}, // contract name => contract ids
-    keys: StorageMap<u64, str[32]> = StorageMap {},          // index => key
+    ids: StorageMap<str[20], RegistryEntry> = StorageMap {}, // contract name => contract ids
+    keys: StorageMap<u64, str[20]> = StorageMap {},          // index => key
     length: u64 = 0,                                         // The number of unique keys.
     owner: Address = Address {
         value: ZERO_B256,
@@ -39,23 +41,6 @@ fn validate_owner() {
     assert(storage.owner == sender);
 }
 
-abi Registry {
-    #[storage(read, write)]
-    fn initialize(owner: Address);
-
-    #[storage(read)]
-    fn get(key: str[32]) -> ContractId;
-
-    #[storage(read)]
-    fn tryGet(key: str[32]) -> (bool, ContractId);
-
-    #[storage(read)]
-    fn getKey(index: u64) -> str[32];
-
-    #[storage(read, write)]
-    fn set(keys: Vec<str[32]>, values: Vec<ContractId>);
-}
-
 impl Registry for Contract {
     #[storage(read, write)]
     fn initialize(owner: Address) {
@@ -75,7 +60,7 @@ impl Registry for Contract {
      * @return value The value of the key.
     */
     #[storage(read)]
-    fn get(key: str[32]) -> ContractId {
+    fn get(key: str[20]) -> ContractId {
         let entry = storage.ids.get(key).unwrap();
         assert(entry.index != 0);
         entry.value
@@ -89,7 +74,7 @@ impl Registry for Contract {
      * @return value The value of the key or zero if it was not found.
     */
     #[storage(read)]
-    fn tryGet(key: str[32]) -> (bool, ContractId) {
+    fn tryGet(key: str[20]) -> (bool, ContractId) {
         let entry = storage.ids.get(key).unwrap();
         let mut tuple = (false, ContractId::from(ZERO_B256));
         if (entry.index == 0) {
@@ -107,7 +92,7 @@ impl Registry for Contract {
      * @return key The key at that index.
     */
     #[storage(read)]
-    fn getKey(index: u64) -> str[32] {
+    fn getKey(index: u64) -> str[20] {
         assert(index != 0 && index <= storage.length);
         let key = storage.keys.get(index).unwrap();
         key
@@ -124,7 +109,7 @@ impl Registry for Contract {
      * @param values The values to set.
     */
     #[storage(read, write)]
-    fn set(keys: Vec<str[32]>, values: Vec<ContractId>) {
+    fn set(keys: Vec<str[20]>, values: Vec<ContractId>) {
         validate_owner();
         let len = keys.len();
         assert(len == values.len());

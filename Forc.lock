@@ -59,12 +59,23 @@ dependencies = ['std']
 [[package]]
 name = 'registry'
 source = 'member'
+dependencies = [
+    'registry_abi',
+    'std',
+]
+
+[[package]]
+name = 'registry_abi'
+source = 'path+from-root-11C5E01A6DE7B0C6'
 dependencies = ['std']
 
 [[package]]
 name = 'staking'
 source = 'member'
-dependencies = ['std']
+dependencies = [
+    'registry_abi',
+    'std',
+]
 
 [[package]]
 name = 'std'

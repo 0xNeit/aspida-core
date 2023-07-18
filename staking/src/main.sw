@@ -1,7 +1,13 @@
 contract;
 
+mod events;
+
 use std::constants::ZERO_B256;
 use std::assert::*;
+use std::block::*;
+
+use registry_abi::Registry;
+use events::*;
 
 // Info of each lock.
 pub struct StakedLockInfo {
@@ -23,6 +29,9 @@ pub struct StakedLockInfo {
 }
 
 storage {
+    owner: Address = Address {
+        value: ZERO_B256,
+    },
     registry: ContractId = ContractId {
         value: ZERO_B256,
     },                                                  // The registry address.
@@ -65,43 +74,130 @@ const Q12: u64 = 1_000_000_000_000;
     * @notice Sets registry and related contract addresses.
     * @param _registry The registry address to set.
 */
-/*fn _setRegistry(registry: ContractId) {
+#[storage(read, write)]
+fn set_registry_internal(registry: ContractId) {
     assert(registry != ContractId::from(ZERO_B256));
     let mut reg = storage.registry;
     reg = registry;
     storage.registry = reg;
 
-        IRegistry reg = IRegistry(_registry);
+    let mut cpm = storage.cover_payment_manager;
+    let mut pida = storage.pida;
+    let mut xplocker = storage.xp_locker;
 
-        // set scp
-        (, address coverPaymentManagerAddr) = reg.tryGet("coverPaymentManager");
-        require(coverPaymentManagerAddr != address(0x0), "zero address payment manager");
-        coverPaymentManager = coverPaymentManagerAddr;
+    let new_reg = abi(Registry, storage.registry.value);
 
-        // set solace
-        (, address solaceAddr) = reg.tryGet("solace");
-        require(solaceAddr != address(0x0), "zero address solace");
-        solace = solaceAddr;
+    // set pcp
+    let (_, cpm_addr) = new_reg.tryGet("coverPaymentManager ");
+    assert(cpm_addr != ContractId::from(ZERO_B256));
+    cpm = cpm_addr;
+    storage.cover_payment_manager = cpm;
 
-        // set xslocker
-        (, address xslockerAddr) = reg.tryGet("xsLocker");
-        require(xslockerAddr != address(0x0), "zero address xslocker");
-        xsLocker = xslockerAddr;
+    // set pida
+    let (_, pida_addr) = new_reg.tryGet("pida                ");
+    assert(pida_addr != ContractId::from(ZERO_B256));
+    pida = pida_addr;
+    storage.pida = pida;
 
-        // approve solace
-        IERC20(solaceAddr).approve(xslockerAddr, type(uint256).max);
-        IERC20(solaceAddr).approve(coverPaymentManagerAddr, type(uint256).max);
+    // set xplocker
+    let (_, xp_locker_addr) = new_reg.tryGet("xpLocker            ");
+    assert(xp_locker_addr != ContractId::from(ZERO_B256));
+    xplocker = xp_locker_addr;
+    storage.xp_locker = xplocker;
 
-        emit RegistrySet(_registry);
-    }*/
+    log(
+        RegistrySet {
+            registry: registry,
+        }
+    );
+}
+
+fn max(a: u64, b: u64) -> u64 {
+    let mut answer: u64 = 0;
+    if (a > b) {
+        answer = a;
+    } else {
+        answer = b;
+    }
+
+    answer
+}
+
+fn min(a: u64, b: u64) -> u64 {
+    let mut answer: u64 = 0;
+    if (a < b) {
+        answer = a;
+    } else {
+        answer = b;
+    }
+
+    answer
+}
+/**
+    * @notice Calculates the reward amount distributed between two timestamps.
+    * @param from The start of the period to measure rewards for.
+    * @param to The end of the period to measure rewards for.
+    * @return amount The reward amount distributed in the given period.
+*/
+#[storage(read)]
+fn get_reward_amount_distributed(from: u64, to: u64) -> u64 {
+    // validate window
+    let new_from = max(from, storage.start_time);
+    let new_to = min(to, storage.end_time);
+    // no reward for negative window
+    if (new_from > new_to) {
+        return 0;
+    };
+
+    return (to - from) * storage.reward_per_second;
+}
 
 abi Staking {
+    #[storage(read, write)]
     fn initialize(owner: Address, registry: ContractId);
+
+    #[storage(read)]
+    fn staked_lock_info(xp_lock_id: u64) -> StakedLockInfo;
+
+    #[storage(read)]
+    fn pending_rewards_of_lock(xp_lock_id: u64) -> u64;
     
 }
 
 impl Staking for Contract {
+    #[storage(read, write)]
     fn initialize(owner: Address, registry: ContractId) {
+        let mut owner_store = storage.owner;
+        owner_store = owner;
+        storage.owner = owner_store;
 
+        set_registry_internal(registry);
+
+    }
+
+    /// @notice Information about each lock.
+    /// @dev lock id => lock info
+    #[storage(read)]
+    fn staked_lock_info(xp_lock_id: u64) -> StakedLockInfo {
+        let lock_info = storage.lock_info.get(xp_lock_id).unwrap();
+        lock_info
+    }
+
+    /**
+        * @notice Calculates the accumulated balance of PIDA for specified lock.
+        * @param xp_lock_id The ID of the lock to query rewards for.
+        * @return reward Total amount of withdrawable reward tokens.
+    */
+    #[storage(read)]
+    fn pending_rewards_of_lock(xp_lock_id: u64) -> u64 {
+        // get lock information
+        let lock_info = storage.lock_info.get(xp_lock_id).unwrap();
+        // math
+        let mut acc_reward_per_share = storage.acc_reward_per_share;
+        if (timestamp() > storage.last_reward_time && storage.value_staked != 0) {
+            let token_reward = get_reward_amount_distributed(storage.last_reward_time, timestamp());
+            acc_reward_per_share += token_reward * Q12 / storage.value_staked;
+        }
+        return lock_info.value * acc_reward_per_share / Q12 - lock_info.reward_debt + lock_info.unpaid_rewards;
     }
 }

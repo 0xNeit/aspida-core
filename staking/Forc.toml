@@ -5,3 +5,4 @@ license = "Apache-2.0"
 name = "staking"
 
 [dependencies]
+registry_abi = { path = "../abis/registry_abi" }
