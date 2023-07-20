@@ -5,9 +5,15 @@ mod events;
 use std::constants::ZERO_B256;
 use std::assert::*;
 use std::block::*;
+use std::call_frames::contract_id;
 
 use registry_abi::Registry;
+use locker_abi::{ Lock, Locker };
+use token_abi::PIDA;
 use events::*;
+use nft::{
+    owner_of,
+};
 
 // Info of each lock.
 pub struct StakedLockInfo {
@@ -88,19 +94,19 @@ fn set_registry_internal(registry: ContractId) {
     let new_reg = abi(Registry, storage.registry.value);
 
     // set pcp
-    let (_, cpm_addr) = new_reg.tryGet("coverPaymentManager ");
+    let (_, cpm_addr) = new_reg.try_get("coverPaymentManager ");
     assert(cpm_addr != ContractId::from(ZERO_B256));
     cpm = cpm_addr;
     storage.cover_payment_manager = cpm;
 
     // set pida
-    let (_, pida_addr) = new_reg.tryGet("pida                ");
+    let (_, pida_addr) = new_reg.try_get("pida                ");
     assert(pida_addr != ContractId::from(ZERO_B256));
     pida = pida_addr;
     storage.pida = pida;
 
     // set xplocker
-    let (_, xp_locker_addr) = new_reg.tryGet("xpLocker            ");
+    let (_, xp_locker_addr) = new_reg.try_get("xpLocker            ");
     assert(xp_locker_addr != ContractId::from(ZERO_B256));
     xplocker = xp_locker_addr;
     storage.xp_locker = xplocker;
@@ -150,6 +156,111 @@ fn get_reward_amount_distributed(from: u64, to: u64) -> u64 {
     };
 
     return (to - from) * storage.reward_per_second;
+}
+
+fn as_address(to: Identity) -> Option<Address> {
+    match to {
+        Identity::Address(addr) => Option::Some(addr),
+        Identity::ContractId(_) => Option::None,
+    }
+}
+
+/**
+    * @notice Fetches up to date information about a lock.
+    * @param xp_lock_id The ID of the lock to query.
+    * @return exists True if the lock exists.
+    * @return owner The owner of the lock or the zero address if it doesn't exist.
+    * @return lock The lock itself.
+*/
+#[storage(read)]
+fn fetch_lock_info(xp_lock_id: u64) -> (bool, Address, Lock) {
+    let locker = abi(Locker, storage.xp_locker.value);
+    let exists = locker.exists(xp_lock_id);
+    let mut owner = Address {
+        value: ZERO_B256,
+    };
+
+    let mut lock = Lock {
+        amount: 0,
+        end: 0,
+    };
+
+    if (exists) {
+        owner = as_address(owner_of(xp_lock_id).unwrap()).unwrap();
+        lock = locker.locks(xp_lock_id);
+    } else {
+        owner = Address::from(ZERO_B256);
+        lock = Lock {
+            amount: 0,
+            end: 0,
+        };
+    }
+
+    return (exists, owner, lock);
+}
+
+#[storage(read)]
+fn calculate_lock_value(amount: u64, end: u64) -> u64 {
+    let base = amount * UNLOCKED_MULTIPLIER_BPS / MAX_BPS;
+    let mut bonus = 0;
+    if (end <= timestamp()) {
+        bonus = 0;
+    } else {
+        bonus = amount * (end - timestamp()) * (MAX_LOCK_MULTIPLIER_BPS - UNLOCKED_MULTIPLIER_BPS) / (MAX_LOCK_DURATION * MAX_BPS);
+    };
+    
+    return base + bonus;
+}
+
+#[storage(read, write)]
+fn update_lock(xp_lock_id: u64) -> (u64, Address) {
+    // math
+    let acc_reward_per_share = storage.acc_reward_per_share;
+    // get lock information
+    let mut lock_info = storage.lock_info.get(xp_lock_id).unwrap();
+    let (exists, owner, lock) = fetch_lock_info(xp_lock_id);
+    // accumulate and transfer unpaid rewards
+    let mut transfer_amount = 0;
+    lock_info.unpaid_rewards += lock_info.value * acc_reward_per_share / Q12 - lock_info.reward_debt;
+    if (lock_info.owner != Address::from(ZERO_B256)) {
+        let pida_abi = abi(PIDA, storage.pida.value);
+        let balance = pida_abi.balance_of(Identity::ContractId(contract_id()));
+        transfer_amount = min(lock_info.unpaid_rewards, balance);
+        lock_info.unpaid_rewards -= transfer_amount;
+    };
+    // update lock value
+    let old_value = lock_info.value;
+    let new_value = calculate_lock_value(lock.amount, lock.end);
+    lock_info.value = new_value;
+    lock_info.reward_debt = new_value * acc_reward_per_share / Q12;
+    if (old_value != new_value) {
+        let mut staked_value = storage.value_staked;
+        staked_value = staked_value - old_value + new_value;
+    };
+    // update lock owner. maintain pre-burn owner in case of unpaid rewards
+    if (owner != lock_info.owner && exists) {
+        lock_info.owner = owner;
+    };
+    storage.lock_info.remove(xp_lock_id);
+    storage.lock_info.insert(xp_lock_id, lock_info);
+    
+    log(
+        LockUpdated {
+            xp_lock_id: xp_lock_id,
+        }
+    );
+
+    let mut receiver = Address {
+        value: ZERO_B256,
+    };
+
+    if (lock_info.owner == Address::from(ZERO_B256)) {
+        receiver = owner;
+    } else {
+        receiver = lock_info.owner;
+    };
+    
+    return (transfer_amount, receiver);
 }
 
 abi Staking {

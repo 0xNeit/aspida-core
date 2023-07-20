@@ -1,0 +1,7 @@
+[project]
+authors = ["Nate"]
+entry = "main.sw"
+license = "Apache-2.0"
+name = "cover_payment"
+
+[dependencies]

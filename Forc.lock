@@ -29,6 +29,16 @@ name = 'core'
 source = 'path+from-root-67732E1923984E25'
 
 [[package]]
+name = 'cover_payment'
+source = 'member'
+dependencies = ['std']
+
+[[package]]
+name = 'cover_points'
+source = 'member'
+dependencies = ['std']
+
+[[package]]
 name = 'libraries'
 source = 'path+from-root-8D2BF65ED81619DA'
 dependencies = ['std']
@@ -73,8 +83,11 @@ dependencies = ['std']
 name = 'staking'
 source = 'member'
 dependencies = [
+    'locker_abi',
+    'nft',
     'registry_abi',
     'std',
+    'token_abi',
 ]
 
 [[package]]

@@ -74,7 +74,7 @@ impl Registry for Contract {
      * @return value The value of the key or zero if it was not found.
     */
     #[storage(read)]
-    fn tryGet(key: str[20]) -> (bool, ContractId) {
+    fn try_get(key: str[20]) -> (bool, ContractId) {
         let entry = storage.ids.get(key).unwrap();
         let mut tuple = (false, ContractId::from(ZERO_B256));
         if (entry.index == 0) {
@@ -92,7 +92,7 @@ impl Registry for Contract {
      * @return key The key at that index.
     */
     #[storage(read)]
-    fn getKey(index: u64) -> str[20] {
+    fn get_key(index: u64) -> str[20] {
         assert(index != 0 && index <= storage.length);
         let key = storage.keys.get(index).unwrap();
         key

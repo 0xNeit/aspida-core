@@ -17,6 +17,9 @@ abi PIDA {
     #[storage(read)]
     fn burn(amount: u64);
 
+    #[storage(read)]
+    fn balance_of(account: Identity) -> u64;
+
     // add minter
     #[storage(read, write)]
     fn add_minter(minter: Address);

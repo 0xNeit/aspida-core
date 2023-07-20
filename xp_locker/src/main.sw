@@ -22,14 +22,9 @@ use nft::extensions::token_metadata::*;
 use events::*;
 
 use token_abi::PIDA;
-use locker_abi::Locker;
+use locker_abi::{ Lock, Locker };
 
 use reentrancy::*;
-
-pub struct Lock {
-    amount: u64,
-    end: u64,
-}
 
 pub enum Errors {
     NotInitialized: (),
@@ -140,7 +135,7 @@ fn validate_owner() {
 }
 
 #[storage(read)]
-fn exists(token_id: u64) -> bool {
+fn exists_internal(token_id: u64) -> bool {
     let owner = owner_of(token_id);
     let mut state = false;
     if (owner.is_none()) {
@@ -153,7 +148,7 @@ fn exists(token_id: u64) -> bool {
 
 #[storage(read)]
 fn token_exists(token_id: u64) {
-    require(exists(token_id) == true, Errors::NotInitialized);
+    require(exists_internal(token_id) == true, Errors::NotInitialized);
 }
 
 /**
@@ -162,7 +157,7 @@ fn token_exists(token_id: u64) {
     * @return lock_ Information about the lock.
 */
 #[storage(read)]
-fn locks(xp_lock_id: u64) -> Lock {
+fn locks_internal(xp_lock_id: u64) -> Lock {
     token_exists(xp_lock_id);
     storage.locks.get(xp_lock_id).unwrap()
 }
@@ -262,6 +257,16 @@ impl Locker for Contract {
         require(storage.owner == Address::from(ZERO_B256), Errors::NotInitialized);
         storage.pida = pida;
         storage.owner = owner;
+    }
+
+    #[storage(read)]
+    fn exists(token_id: u64) -> bool {
+        return exists_internal(token_id);
+    }
+
+    #[storage(read)]
+    fn locks(xp_lock_id: u64) -> Lock {
+        return locks_internal(xp_lock_id);
     }
 
     /***************************************

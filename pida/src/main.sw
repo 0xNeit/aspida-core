@@ -6,6 +6,7 @@ use std::constants::ZERO_B256;
 use std::token::*;
 use std::storage::*;
 use std::call_frames::contract_id;
+
 use token_abi::*;
 
 
@@ -17,7 +18,7 @@ storage {
         symbol: "    ",
         decimals: 9u8,
     },
-    balances: StorageMap<Address, u64> = StorageMap {},
+    balances: StorageMap<Identity, u64> = StorageMap {},
     owner: Address = Address {
         value: ZERO_B256,
     },
@@ -57,7 +58,7 @@ fn is_minter(account: Address) -> bool {
     * @dev Returns the amount of tokens owned by `account`.
 */
 #[storage(read)]
-fn balance_of(account: Address) -> u64 {
+fn balance_of_internal(account: Identity) -> u64 {
     let balance = storage.balances.get(account).unwrap();
     balance
 }
@@ -117,9 +118,14 @@ impl PIDA for Contract {
      */
     #[storage(read)]
     fn burn(amount: u64) {
-        let sender = get_msg_sender_address_or_panic();
-        require(balance_of(sender) >= amount, Error::InsufficientAmount);
+        let sender = msg_sender().unwrap();
+        require(balance_of_internal(sender) >= amount, Error::InsufficientAmount);
         burn(amount);
+    }
+
+    #[storage(read)]
+    fn balance_of(account: Identity) -> u64 {
+        balance_of_internal(account)
     }
 
     /**

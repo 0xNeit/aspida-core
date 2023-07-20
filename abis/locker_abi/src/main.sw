@@ -1,8 +1,19 @@
 library;
 
+pub struct Lock {
+    amount: u64,
+    end: u64,
+}
+
 abi Locker {
     #[storage(read, write)]
     fn initialize(owner: Address, pida: ContractId);
+
+    #[storage(read)]
+    fn exists(token_id: u64) -> bool;
+
+    #[storage(read)]
+    fn locks(xp_lock_id: u64) -> Lock;
 
     #[storage(read, write)]
     fn create_lock(
