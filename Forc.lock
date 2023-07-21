@@ -85,9 +85,19 @@ source = 'member'
 dependencies = [
     'locker_abi',
     'nft',
+    'reentrancy',
     'registry_abi',
+    'staking_abi',
     'std',
     'token_abi',
+]
+
+[[package]]
+name = 'staking_abi'
+source = 'path+from-root-18DC23C052FF0E38'
+dependencies = [
+    'locker_abi',
+    'std',
 ]
 
 [[package]]

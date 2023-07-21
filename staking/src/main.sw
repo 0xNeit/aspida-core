@@ -10,29 +10,13 @@ use std::call_frames::contract_id;
 use registry_abi::Registry;
 use locker_abi::{ Lock, Locker };
 use token_abi::PIDA;
+use staking_abi::*;
 use events::*;
 use nft::{
     owner_of,
 };
 
-// Info of each lock.
-pub struct StakedLockInfo {
-    value: u64,             // Value of user provided tokens.
-    reward_debt: u64,       // Reward debt. See explanation below.
-    unpaid_rewards: u64,    // Rewards that have not been paid.
-    owner: Address,         // Account that owns the lock.
-    //
-    // We do some fancy math here. Basically, any point in time, the amount of reward token
-    // entitled to the owner of a lock but is pending to be distributed is:
-    //
-    //   pending reward = (lock_info.value * accRewardPerShare) - lock_info.rewardDebt + lock_info.unpaidRewards
-    //
-    // Whenever a user updates a lock, here's what happens:
-    //   1. The farm's `acc_reward_per_share` and `last_reward_time` gets updated.
-    //   2. Users pending rewards accumulate in `unpaid_rewards`.
-    //   3. User's `value` gets updated.
-    //   4. User's `reward_debt` gets updated.
-}
+use reentrancy::*;
 
 storage {
     owner: Address = Address {
@@ -263,16 +247,29 @@ fn update_lock(xp_lock_id: u64) -> (u64, Address) {
     return (transfer_amount, receiver);
 }
 
-abi Staking {
-    #[storage(read, write)]
-    fn initialize(owner: Address, registry: ContractId);
+#[storage(read, write)]
+fn harvest_internal(xp_lock_id: u64) {
+    let (transfer_amount, receiver) = update_lock(xp_lock_id);
+    if ( receiver != Address::from(ZERO_B256) && transfer_amount != 0) {
+        let pida_abi = abi(PIDA, storage.pida.value);
+        pida_abi.transfer(transfer_amount, receiver);
+    }
+}
 
-    #[storage(read)]
-    fn staked_lock_info(xp_lock_id: u64) -> StakedLockInfo;
+#[storage(read, write)]
+fn update() {
+    if (timestamp() <= storage.last_reward_time) {
+        return;
+    };
 
-    #[storage(read)]
-    fn pending_rewards_of_lock(xp_lock_id: u64) -> u64;
-    
+    if (storage.value_staked == 0) {
+        storage.last_reward_time = min(timestamp(), storage.end_time);
+        return;
+    }
+
+    let token_reward = get_reward_amount_distributed(storage.last_reward_time, timestamp());
+    storage.acc_reward_per_share += token_reward * Q12 / storage.value_staked;
+    storage.last_reward_time = min(timestamp(), storage.end_time);
 }
 
 impl Staking for Contract {
@@ -310,5 +307,46 @@ impl Staking for Contract {
             acc_reward_per_share += token_reward * Q12 / storage.value_staked;
         }
         return lock_info.value * acc_reward_per_share / Q12 - lock_info.reward_debt + lock_info.unpaid_rewards;
+    }
+
+    #[storage(read, write)]
+    fn register_lock_event(
+        xp_lock_id: u64,
+        old_owner: Address,
+        new_owner: Address,
+        old_lock: Lock,
+        new_lock: Lock,
+    ) {
+        reentrancy_guard();
+        update();
+        harvest_internal(xp_lock_id);
+
+        log(
+            LockEvent {
+                xp_lock_id: xp_lock_id,
+                old_owner: old_owner,
+                new_owner: new_owner,
+                old_lock: old_lock,
+                new_lock: new_lock,
+            }
+        );
+    }
+
+    #[storage(read, write)]
+    fn harvest_lock(xp_lock_id: u64) {
+        reentrancy_guard();
+        update();
+        harvest_internal(xp_lock_id);
+    }
+
+    #[storage(read, write)]
+    fn harvest_locks(xp_lock_ids: Vec<u64>) {
+        reentrancy_guard();
+        update();
+        let len = xp_lock_ids.len();
+        let mut i = 0;
+        while (i < len) {
+            harvest_internal(xp_lock_ids.get(i).unwrap());
+        }
     }
 }

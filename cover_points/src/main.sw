@@ -26,6 +26,13 @@ storage {
     acp_retainers: StorageVec<Identity> = StorageVec {},
 }
 
+fn as_address(to: Identity) -> Option<Address> {
+    match to {
+        Identity::Address(addr) => Option::Some(addr),
+        Identity::ContractId(_) => Option::None,
+    }
+}
+
 #[storage(read)]
 fn balance_of_internal(account: Identity) -> u64 {
     let balance = storage.balances.get(account).unwrap();
@@ -71,6 +78,21 @@ fn is_acp_mover(account: Identity) -> bool {
     }
 }
 
+#[storage(read, write)]
+fn burn_internal(account: Identity, amount: u64) {
+    let mut account_balance = storage.balances.get(account).unwrap(); // TODO check for None
+    assert(account_balance >= amount);
+    account_balance -= amount;
+    storage.total_supply += amount;
+    // burn nonrefundable amount first
+    let bnr1 = storage.balances_non_refundable.get(account).unwrap();
+    let bnr2 = sub_or_zero(bnr1, amount);
+
+    if (bnr2 != bnr1) {
+        storage.balances_non_refundable.insert(account, bnr2);
+    }
+}
+
 abi ACP {
     #[storage(read, write)]
     fn initialize(owner: Address);
@@ -89,6 +111,15 @@ abi ACP {
 
     #[storage(read, write)]
     fn transfer(amount: u64, address: Identity) -> bool;
+
+    #[storage(read, write)]
+    fn mint(account: Identity, amount: u64, is_refundable: bool);
+
+    #[storage(read, write)]
+    fn burn_multiple(accounts: Vec<Identity>, amounts: Vec<u64>);
+
+    #[storage(read, write)]
+    fn burn(account: Identity, amount: u64);
 }
 
 impl ACP for Contract {
@@ -177,5 +208,57 @@ impl ACP for Contract {
         return true;
     }
 
-    
+    #[storage(read, write)]
+    fn mint(account: Identity, amount: u64, is_refundable: bool) {
+        let sender = msg_sender().unwrap();
+        assert(is_acp_mover(sender) == true);
+
+        let mut total_supply = storage.total_supply;
+        total_supply += amount;
+        storage.total_supply = total_supply;
+
+        let mut account_balance = storage.balances.get(account).unwrap();
+        account_balance += amount;
+        storage.balances.insert(account, account_balance);
+
+        if (!is_refundable) {
+            // add to non-refunerable balances map as well for the same user balance tracking purpose
+            let mut refundable_balance = storage.balances_non_refundable.get(account).unwrap();
+            refundable_balance += amount;
+            storage.balances_non_refundable.insert(account, refundable_balance);
+        }
+
+        mint(amount);
+    }
+
+    #[storage(read, write)]
+    fn burn_multiple(accounts: Vec<Identity>, amounts: Vec<u64>) {
+        let sender = msg_sender().unwrap();
+        assert(is_acp_mover(sender));
+        let len = accounts.len();
+        assert(len == amounts.len());
+
+        let mut i = 0;
+        while (i < len) {
+            burn_internal(accounts.get(i).unwrap(), amounts.get(i).unwrap());
+            i += 1;
+        }
+    }    
+
+    #[storage(read, write)]
+    fn burn(account: Identity, amount: u64) {
+        let sender = msg_sender().unwrap();
+        assert(is_acp_mover(sender));
+        burn_internal(account, amount);
+    }
+
+    /*fn withdraw(account: Identity, amount: u64) {
+        let sender = msg_sender().unwrap();
+        assert(is_acp_mover(sender));
+        let bal = storage.balances.get(account).unwrap();
+        let bnr = storage.balances_non_refundable.get(account).unwrap();
+        let br = sub_or_zero(bal, bnr);
+        assert(br >= amount);
+        let min_acp = 
+    }*/
 }

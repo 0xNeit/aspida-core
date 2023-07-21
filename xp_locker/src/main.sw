@@ -240,13 +240,15 @@ fn get_xp_lock_listeners() -> Vec<ContractId> {
     let len = storage.xp_lock_listeners.len();
     let mut listeners = Vec::new();
     let mut index = 0;
-    while ( index < len) {
+    while (index < len) {
         listeners.push(storage.xp_lock_listeners.get(index).unwrap());
         index = index + 1;
     };
 
     listeners
 }
+
+
 
 impl Locker for Contract {
 

@@ -8,4 +8,6 @@ name = "staking"
 registry_abi = { path = "../abis/registry_abi" }
 locker_abi = { path = "../abis/locker_abi" }
 token_abi = { path = "../abis/token_abi" }
+staking_abi = { path = "../abis/staking_abi" }
 nft = { git = "https://github.com/FuelLabs/sway-libs", tag = "v0.8.0" }
+reentrancy = { git = "https://github.com/FuelLabs/sway-libs", tag = "v0.8.0" }

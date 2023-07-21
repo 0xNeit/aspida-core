@@ -134,8 +134,9 @@ impl Registry for Contract {
                     key: key,
                     value: value,
                 }
-            )
-        }
-        i = i + 1;
+            );
+
+            i = i + 1;
+        }   
     }
 }

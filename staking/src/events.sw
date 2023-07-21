@@ -1,5 +1,7 @@
 library;
 
+use locker_abi::Lock;
+
 /// /// @notice Emitted when the global information is updated.
 pub struct Updated {}
     
@@ -17,6 +19,14 @@ pub struct RewardsSet {
 pub struct FarmTimesSet {
     start_time: u64, 
     end_time: u64
+}
+
+pub struct LockEvent {
+    xp_lock_id: u64,
+    old_owner: Address,
+    new_owner: Address,
+    old_lock: Lock,
+    new_lock: Lock,
 }
     
 /// /// @notice Emitted when the registry is set.
