@@ -1,5 +1,7 @@
 library;
 
+use std::assert::*;
+
 pub struct I64 {
     value: u64,
     negative: bool,
@@ -175,7 +177,7 @@ impl core::ops::Multiply for I64 {
 impl core::ops::Divide for I64 {
     /// Divide a I64 by a I64. Panics if divisor is zero.
     fn divide(self, divisor: Self) -> Self {
-        require(divisor != Self::new(), "ZeroDivisor");
+        assert(divisor != Self::new());
         if self.value == 0{
             Self::new()    
         }else if !self.negative == !divisor.negative {

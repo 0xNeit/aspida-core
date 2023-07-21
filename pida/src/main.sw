@@ -26,14 +26,6 @@ storage {
     total_supply: u64 = 0u64,
 }
 
-enum Error {
-    CannotReinitialize: (),
-    MintIsClosed: (),
-    NotOwner: (),
-    NotMinter: (),
-    InsufficientAmount: (),
-}
-
 pub fn get_msg_sender_address_or_panic() -> Address {
     let sender: Result<Identity, AuthError> = msg_sender();
     if let Identity::Address(address) = sender.unwrap() {
@@ -66,7 +58,7 @@ fn balance_of_internal(account: Identity) -> u64 {
 #[storage(read)]
 fn validate_owner() {
     let sender = get_msg_sender_address_or_panic();
-    require(storage.owner == sender, Error::NotOwner);
+    assert(storage.owner == sender);
 }
 
 impl PIDA for Contract {
@@ -75,7 +67,7 @@ impl PIDA for Contract {
     //////////////////////////////////////
     #[storage(read, write)]
     fn initialize(config: TokenInitializeConfig, owner: Address) {
-        require(storage.owner.value == ZERO_B256, Error::CannotReinitialize);
+        assert(storage.owner.value == ZERO_B256);
         storage.owner = owner;
         storage.config = config;
     }
@@ -85,11 +77,11 @@ impl PIDA for Contract {
     //////////////////////////////////////
     #[storage(read, write)]
     fn mint(amount: u64) {
-        require(amount <= MAX_SUPPLY, Error::MintIsClosed);
+        assert(amount <= MAX_SUPPLY);
         let sender = get_msg_sender_address_or_panic();
         // can only be called by authorized minters
         let minter = is_minter(sender);
-        require(minter == true, Error::NotMinter);
+        assert(minter == true);
         // mint
         mint_to_address(amount, sender);
         storage.total_supply = (storage.total_supply + amount);
@@ -102,11 +94,11 @@ impl PIDA for Contract {
      */
     #[storage(read, write)]
     fn mint_to(account: Address, amount: u64) {
-        require(amount <= MAX_SUPPLY, Error::MintIsClosed);
+        assert(amount <= MAX_SUPPLY);
         let sender = get_msg_sender_address_or_panic();
         // can only be called by authorized minters
         let minter = is_minter(sender);
-        require(minter == true, Error::NotMinter);
+        assert(minter == true);
         // mint
         mint_to_address(amount, account);
         storage.total_supply = (storage.total_supply + amount);
@@ -119,7 +111,7 @@ impl PIDA for Contract {
     #[storage(read)]
     fn burn(amount: u64) {
         let sender = msg_sender().unwrap();
-        require(balance_of_internal(sender) >= amount, Error::InsufficientAmount);
+        assert(balance_of_internal(sender) >= amount);
         burn(amount);
     }
 

@@ -31,28 +31,6 @@ use nft::extensions::burnable::*;
 
 use nft::extensions::token_metadata::*;
 
-pub enum Errors {
-    AtCapacity: (),
-    BondTooLarge: (),
-    CannotReinitialize: (),
-    Concluded: (),
-    NotBonder: (),
-    NotInitialized: (),
-    NotOwner: (),
-    NotStarted: (),
-    InvalidAddress: (),
-    InvalidPrice: (),
-    InvalidDenom: (),
-    InvalidDate: (),
-    InvalidHalfLife: (),
-    InvalidFee: (),
-    InsufficientAmount: (),
-    Paused: (),
-    Slippage: (),
-    ZeroAddress: (),
-    ZeroPrice: (), 
-}
-
 pub enum State {
     Initialized: (),
     Uninitialized: (),
@@ -201,11 +179,10 @@ fn _deposit(
     depositor: Identity,
     stake: bool,
 ) -> (u64, u64, u64) {
-    require(!storage.paused, Errors::Paused);
-
-    require(storage.terms_set, Errors::NotInitialized);
-    require(timestamp() >= storage.start_time, Errors::NotStarted);
-    require(timestamp() <= storage.end_time, Errors::Concluded);
+    assert(!storage.paused);
+    assert(storage.terms_set);
+    assert(timestamp() >= storage.start_time);
+    assert(timestamp() <= storage.end_time);
 
     let mut token_id = 0;
 
@@ -215,17 +192,17 @@ fn _deposit(
     if (storage.capacity_is_payout) {
         // capacity in payout terms
         let cap = storage.capacity;
-        require(cap >= payout, Errors::AtCapacity);
+        assert(cap >= payout);
         storage.capacity = cap - payout;
     } else {
         // capacity in principal terms
         let cap = storage.capacity;
-        require(cap >= amount, Errors::AtCapacity);
+        assert(cap >= amount);
         storage.capacity = cap - amount;
     }
 
-    require(payout <= storage.max_payout, Errors::BondTooLarge);
-    require(min_amount_out <= payout, Errors::Slippage);
+    assert(payout <= storage.max_payout);
+    assert(min_amount_out <= payout);
 
     let protocol_fee = amount * storage.protocol_fee_bps / MAX_BPS;
 
@@ -293,12 +270,12 @@ fn set_addresses(
     principal: ContractId,
     bond_registry: ContractId
 ) {
-    require(pida != ContractId::from(ZERO_B256), Errors::ZeroAddress);
-    require(xp_locker != ContractId::from(ZERO_B256), Errors::ZeroAddress);
-    require(pool != ContractId::from(ZERO_B256), Errors::ZeroAddress);
-    require(dao != Address::from(ZERO_B256) , Errors::ZeroAddress);
-    require(principal != ContractId::from(ZERO_B256), Errors::ZeroAddress);
-    require(bond_registry != ContractId::from(ZERO_B256), Errors::ZeroAddress);
+    assert(pida != ContractId::from(ZERO_B256));
+    assert(xp_locker != ContractId::from(ZERO_B256));
+    assert(pool != ContractId::from(ZERO_B256));
+    assert(dao != Address::from(ZERO_B256));
+    assert(principal != ContractId::from(ZERO_B256));
+    assert(bond_registry != ContractId::from(ZERO_B256));
 
     // write pida contract to storage (read first -> update in function -> update in storage)
     let mut pida_store = storage.pida;
@@ -354,7 +331,7 @@ pub fn get_msg_sender_address_or_panic() -> Address {
 #[storage(read)]
 fn validate_owner() {
     let sender = get_msg_sender_address_or_panic();
-    require(storage.owner == sender, Errors::NotOwner);
+    assert(storage.owner == sender);
 }
 
 /**
@@ -371,7 +348,7 @@ fn calculate_total_payout(deposit_amount: u64) -> u64 {
         price = storage.minimum_price;
     };
 
-    require(price != 0, Errors::InvalidPrice);
+    assert(price != 0);
     storage.last_price_update = timestamp();
     // calculate amount out
     let amount_out = (1000000000 * deposit_amount) / price; 
@@ -391,7 +368,7 @@ fn calculate_eligible_payout(bond_id: u64) -> u64 {
     let mut eligible_payout = 0;
 
     // Sanity check
-    require(bond.payout_already_claimed <= bond.payout_amount, Errors::InsufficientAmount);
+    assert(bond.payout_already_claimed <= bond.payout_amount);
 
     // Calculation if still vesting
     if (timestamp() <= bond.vesting_start + bond.local_vesting_term) {
@@ -405,40 +382,40 @@ fn calculate_eligible_payout(bond_id: u64) -> u64 {
 
 #[storage(read)]
 fn _calculate_amount_in(amount_out: u64, _stake: bool) -> u64 {
-    require(storage.terms_set, Errors::NotInitialized);
+    assert(storage.terms_set);
     // exchange rate
     let bond_price = _bond_price();
-    require(bond_price > 0, Errors::ZeroPrice);
+    assert(bond_price > 0);
     let amount_in = amount_out * bond_price / 1000000000;
     // ensure there is remaining capacity for bond
     if (storage.capacity_is_payout) {
         // capacity in payout terms
-        require(storage.capacity >= amount_out, Errors::AtCapacity);
+        assert(storage.capacity >= amount_out);
     } else {
         // capacity in principal terms
-        require(storage.capacity >= amount_in, Errors::AtCapacity);
+        assert(storage.capacity >= amount_in);
     }
-    require(amount_out <= storage.max_payout, Errors::BondTooLarge);
+    assert(amount_out <= storage.max_payout);
         
     amount_in
 }
 
 #[storage(read)]
 fn _calculate_amount_out(amount_in: u64, _stake: bool) -> u64 {
-    require(storage.terms_set, Errors::NotInitialized);
+    assert(storage.terms_set);
     // exchange rate
     let bond_price = _bond_price();
-    require(bond_price > 0, Errors::ZeroPrice);
+    assert(bond_price > 0);
     let amount_out = 1000000000 * amount_in / bond_price; //
     // ensure there is remaining capacity for bond
     if (storage.capacity_is_payout) {
         // capacity in payout terms
-        require(storage.capacity >= amount_out, Errors::AtCapacity);
+        assert(storage.capacity >= amount_out);
     } else {
         // capacity in principal terms
-        require(storage.capacity >= amount_in, Errors::AtCapacity);
+        assert(storage.capacity >= amount_in);
     }
-    require(amount_out <= storage.max_payout, Errors::BondTooLarge);
+    assert(amount_out <= storage.max_payout);
 
     amount_out
 }
@@ -489,7 +466,7 @@ fn is_approved_or_owner(spender: Identity, token_id: u64) -> bool {
 
 #[storage(read)]
 fn token_exists(token_id: u64) {
-    require(exists(token_id) == true, Errors::NotInitialized);
+    assert(exists(token_id) == true);
 }
 
 
@@ -514,7 +491,7 @@ impl BondTeller for Contract {
         principal: ContractId,
         bond_registry: ContractId,
     ) {
-        require(storage.state == State::Uninitialized, Errors::CannotReinitialize);
+        assert(storage.state == State::Uninitialized);
         set_addresses(pida, xp_locker, pool, dao, principal, bond_registry);
         storage.state = State::Initialized;
         storage.owner = owner;
@@ -619,7 +596,7 @@ impl BondTeller for Contract {
         token_exists(bond_id);
         // checks
         let sender = msg_sender().unwrap();
-        require(is_approved_or_owner(sender, bond_id), Errors::NotBonder);
+        assert(is_approved_or_owner(sender, bond_id));
 
         // Payout as per vesting terms
         let mut bond = storage.bonds.get(bond_id).unwrap();
@@ -689,23 +666,23 @@ impl BondTeller for Contract {
     */
     #[storage(write)]
     fn set_terms(terms: Terms) {
-        require(terms.start_price > 0, Errors::InvalidPrice);
+        assert(terms.start_price > 0);
         storage.next_price = terms.start_price;
         storage.minimum_price = terms.minimum_price;
         storage.max_payout = terms.max_payout;
 
-        require(terms.price_adj_denom != 0, Errors::InvalidDenom);
+        assert(terms.price_adj_denom != 0);
         storage.price_adj_num = terms.price_adj_num;
         storage.price_adj_denom = terms.price_adj_denom;
         storage.capacity = terms.capacity;
         storage.capacity_is_payout = terms.capacity_is_payout;
 
-        require(terms.start_time <= terms.end_time, Errors::InvalidDate);
+        assert(terms.start_time <= terms.end_time);
         storage.start_time = terms.start_time;
         storage.end_time = terms.end_time;
         storage.global_vesting_term = terms.global_vesting_term;
 
-        require(terms.half_life > 0, Errors::InvalidHalfLife);
+        assert(terms.half_life > 0);
         storage.half_life = terms.half_life;
         storage.terms_set = true;
         storage.last_price_update = timestamp();
@@ -722,7 +699,7 @@ impl BondTeller for Contract {
     #[storage(read, write)]
     fn set_fees(protocol_fee: u64) {
         validate_owner();
-        require(protocol_fee <= MAX_BPS, Errors::InvalidFee);
+        assert(protocol_fee <= MAX_BPS);
         storage.protocol_fee_bps = protocol_fee;
 
         log(

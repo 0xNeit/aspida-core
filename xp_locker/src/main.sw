@@ -33,14 +33,6 @@ use staking_abi::*;
 
 use reentrancy::*;
 
-pub enum Errors {
-    NotInitialized: (),
-    NotOwner: (),
-    OutOfBounds: (),
-    ZeroAddress: (),
-    ExceedMaxLock: (),
-}
-
 pub struct LockMeta {
     name: str[10],
     symbol: str[6],
@@ -110,7 +102,7 @@ fn create_lock_internal(
         end: end,
     };
 
-    require(new_lock.end <= timestamp() + MAX_LOCK_DURATION, Errors::ExceedMaxLock);
+    assert(new_lock.end <= timestamp() + MAX_LOCK_DURATION);
     // accounting
     mint(amount, recipient);
 
@@ -165,7 +157,7 @@ pub fn get_msg_sender_address_or_panic() -> Address {
 #[storage(read)]
 fn validate_owner() {
     let sender = get_msg_sender_address_or_panic();
-    require(storage.owner == sender, Errors::NotOwner);
+    assert(storage.owner == sender);
 }
 
 #[storage(read)]
@@ -182,7 +174,7 @@ fn exists_internal(token_id: u64) -> bool {
 
 #[storage(read)]
 fn token_exists(token_id: u64) {
-    require(exists_internal(token_id) == true, Errors::NotInitialized);
+    assert(exists_internal(token_id) == true);
 }
 
 /**
@@ -264,7 +256,7 @@ fn get_xp_lock_listeners_internal() -> Vec<ContractId> {
 
 #[storage(read)]
 fn token_of_owner_by_index(owner: Address, index: u64) -> u64 {
-    require(index < balance_of(Identity::Address(owner)), Errors::OutOfBounds);
+    assert(index < balance_of(Identity::Address(owner)));
     let outer_map = storage.owned_tokens.get(owner).unwrap();
     let inner_map = outer_map.token_id;
     inner_map
@@ -363,9 +355,9 @@ impl Locker for Contract {
 
     #[storage(read, write)]
     fn initialize(owner: Address, pida: ContractId) {
-        require(pida != ContractId::from(ZERO_B256), Errors::ZeroAddress);
-        require(owner != Address::from(ZERO_B256), Errors::ZeroAddress);
-        require(storage.owner == Address::from(ZERO_B256), Errors::NotInitialized);
+        assert(pida != ContractId::from(ZERO_B256));
+        assert(owner != Address::from(ZERO_B256));
+        assert(storage.owner == Address::from(ZERO_B256));
         storage.pida = pida;
         storage.owner = owner;
     }
