@@ -107,6 +107,9 @@ abi ACP {
     fn decimals() -> u8;
 
     #[storage(read)]
+    fn total_supply() -> u64;
+
+    #[storage(read)]
     fn balance_of(account: Identity) -> u64;
 
     #[storage(read, write)]
@@ -146,6 +149,12 @@ impl ACP for Contract {
     fn decimals() -> u8 {
         let decimals_store = storage.decimals;
         return decimals_store;
+    }
+
+    #[storage(read)]
+    fn total_supply() -> u64 {
+        let total_supply_store = storage.total_supply;
+        return total_supply_store;
     }
 
     #[storage(read)]

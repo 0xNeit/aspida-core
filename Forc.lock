@@ -45,6 +45,14 @@ source = 'member'
 dependencies = ['std']
 
 [[package]]
+name = 'cover_product'
+source = 'member'
+dependencies = [
+    'registry_abi',
+    'std',
+]
+
+[[package]]
 name = 'libraries'
 source = 'path+from-root-8D2BF65ED81619DA'
 dependencies = ['std']
@@ -82,7 +90,7 @@ dependencies = [
 
 [[package]]
 name = 'registry_abi'
-source = 'path+from-root-11C5E01A6DE7B0C6'
+source = 'path+from-root-289D6415E3C49920'
 dependencies = ['std']
 
 [[package]]

@@ -5,6 +5,7 @@ members = [
     "bond_teller", 
     "cover_payment",
     "cover_points",
+    "cover_product",
     "xp_locker", 
     "staking", 
     "registry"
