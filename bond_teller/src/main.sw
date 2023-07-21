@@ -547,5 +547,8 @@ impl BondTeller for Contract {
         bond_registry: ContractId
     ) {
         set_addresses_internal(pida, xp_locker, pool, dao, principal, bond_registry);
+        log(
+            AddressesSet {}
+        );
     }
 }

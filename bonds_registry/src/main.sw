@@ -1,5 +1,7 @@
 contract;
 
+mod events;
+
 use std::contract_id::ContractId;
 use std::constants::ZERO_B256;
 use std::address::Address;
@@ -8,12 +10,13 @@ use std::auth::{AuthError, msg_sender};
 
 use token_abi::*;
 use bond_registry_abi::*;
+use events::*;
 
 storage {
     pida: ContractId = ContractId {
         value: ZERO_B256,
     },
-    is_teller: StorageMap<Address, bool> = StorageMap {},
+    is_teller: StorageMap<Identity, bool> = StorageMap {},
     owner: Address = Address {
         value: ZERO_B256,
     },
@@ -35,11 +38,7 @@ fn validate_owner() {
 }
 
 impl BondsRegistry for Contract {
-    /**
-     * @notice Initializes the BondsRegistry contract.
-     * @param owner The address of the owner.
-     * @param pida ContractId of PIDA.
-     */
+
     #[storage(read, write)]
     fn initialize(owner: Address, pida: ContractId) {
         assert(storage.pida.value == ZERO_B256);
@@ -52,41 +51,39 @@ impl BondsRegistry for Contract {
     TELLER MANAGEMENT FUNCTIONS
     ***************************************/
 
-    /**
-     * @notice Adds a teller.
-     * Can only be called by the current owner.
-     * @param teller The teller to add.
-     */
     #[storage(read, write)]
-    fn add_teller(teller: Address) {
+    fn add_teller(teller: Identity) {
         validate_owner();
         storage.is_teller.insert(teller, true);
+
+        log(
+            TellerAdded {
+                teller: teller,
+            }
+        );
     }
 
-    /**
-     * @notice Removes a teller.
-     * Can only be called by the current owner.
-     * @param teller The teller to remove.
-     */
     #[storage(read, write)]
-    fn remove_teller(teller: Address) -> bool {
+    fn remove_teller(teller: Identity) -> bool {
         validate_owner();
         let is_removed = storage.is_teller.remove(teller);
-        is_removed
+
+        log(
+            TellerRemoved {
+                teller: teller,
+            }
+        );
+
+        return is_removed;
     }
 
     /***************************************
     FUND MANAGEMENT FUNCTIONS
     ***************************************/
 
-    /**
-     * @notice Sends PIDA to the teller.
-     * Can only be called by tellers.
-     * @param amount The amount of PIDA to send.
-     */
     #[storage(read)]
     fn pull_pida(amount: u64) {
-        let sender = get_msg_sender_address_or_panic();
+        let sender = msg_sender().unwrap();
         // check that caller is a registered teller
         assert(storage.is_teller.get(sender).unwrap() == true);
         // mint new PIDA

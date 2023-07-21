@@ -5,10 +5,10 @@ abi BondsRegistry {
     fn initialize(owner: Address, pida: ContractId);
 
     #[storage(read, write)]
-    fn add_teller(teller: Address);
+    fn add_teller(teller: Identity);
 
     #[storage(read, write)]
-    fn remove_teller(teller: Address) -> bool;
+    fn remove_teller(teller: Identity) -> bool;
 
     #[storage(read)]
     fn pull_pida(amount: u64);
