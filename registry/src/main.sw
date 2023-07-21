@@ -1,19 +1,16 @@
 contract;
 
+mod events;
+
 use std::constants::ZERO_B256;
 use std::assert::*;
 use std::auth::*;
 
 use registry_abi::Registry;
+use events::*;
 
 pub struct RegistryEntry {
     index: u64,
-    value: ContractId,
-}
-
-/// Emitted when a record is set.
-pub struct RecordSet {
-    key: str[20], 
     value: ContractId,
 }
 
@@ -53,12 +50,6 @@ impl Registry for Contract {
     VIEW FUNCTIONS
     ***************************************/
 
-    /**
-     * @notice Gets the `value` of a given `key`.
-     * Reverts if the key is not in the mapping.
-     * @param key The key to query.
-     * @return value The value of the key.
-    */
     #[storage(read)]
     fn get(key: str[20]) -> ContractId {
         let entry = storage.ids.get(key).unwrap();
@@ -66,13 +57,6 @@ impl Registry for Contract {
         entry.value
     }
 
-    /**
-     * @notice Gets the `value` of a given `key`.
-     * Fails gracefully if the key is not in the mapping.
-     * @param key The key to query.
-     * @return success True if the key was found, false otherwise.
-     * @return value The value of the key or zero if it was not found.
-    */
     #[storage(read)]
     fn try_get(key: str[20]) -> (bool, ContractId) {
         let entry = storage.ids.get(key).unwrap();
@@ -85,12 +69,6 @@ impl Registry for Contract {
         tuple
     }
 
-    /**
-     * @notice Gets the `key` of a given `index`.
-     * @dev Iterable [1,length].
-     * @param index The index to query.
-     * @return key The key at that index.
-    */
     #[storage(read)]
     fn get_key(index: u64) -> str[20] {
         assert(index != 0 && index <= storage.length);
@@ -102,12 +80,6 @@ impl Registry for Contract {
     GOVERNANCE FUNCTIONS
     ***************************************/
 
-    /**
-     * @notice Sets keys and values.
-     * Can only be called by the current owner.
-     * @param keys The keys to set.
-     * @param values The values to set.
-    */
     #[storage(read, write)]
     fn set(keys: Vec<str[20]>, values: Vec<ContractId>) {
         validate_owner();

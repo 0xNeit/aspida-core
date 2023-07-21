@@ -61,6 +61,63 @@ storage {
 const MAX_LOCK_DURATION: u64 = 126_144_000;
 
 /***************************************
+    VIEW FUNCTIONS
+***************************************/
+
+#[storage(read)]
+fn locks_internal(xp_lock_id: u64) -> Lock {
+    token_exists(xp_lock_id);
+    storage.locks.get(xp_lock_id).unwrap()
+}
+
+#[storage(read)]
+fn is_locked_internal(xp_lock_id: u64) -> bool {
+    token_exists(xp_lock_id);
+    let locks = storage.locks.get(xp_lock_id).unwrap();
+    locks.end > timestamp()
+}
+
+#[storage(read)]
+fn time_left_internal(xp_lock_id: u64) -> u64 {
+    let mut time = 0;
+    token_exists(xp_lock_id);
+    let locks = storage.locks.get(xp_lock_id).unwrap();
+    if ((locks.end > timestamp()) == true) {
+        time = locks.end - timestamp(); // locked
+    } else {
+        time = 0; // unlocked
+    }
+    time
+}
+
+#[storage(read)]
+fn staked_balance_internal(account: Address) -> u64 {
+    let num_of_locks = balance_of(Identity::Address(account));
+    let mut balance = 0;
+    let mut i = 0;
+    while (i < num_of_locks) {
+        let xp_lock_id = token_of_owner_by_index(account, i);
+        balance += storage.locks.get(xp_lock_id).unwrap().amount;
+        i = i + 1;
+    };
+
+    balance
+}
+
+#[storage(read)]
+fn get_xp_lock_listeners_internal() -> Vec<ContractId> {
+    let len = storage.xp_lock_listeners.len();
+    let mut listeners = Vec::new();
+    let mut index = 0;
+    while (index < len) {
+        listeners.push(storage.xp_lock_listeners.get(index).unwrap());
+        index = index + 1;
+    };
+
+    listeners
+}
+
+/***************************************
     HELPER FUNCTIONS
 ***************************************/
 
@@ -84,13 +141,60 @@ fn is_approved_or_owner(spender: Identity, token_id: u64) -> bool {
     (spender == owner || is_approved_for_all(spender, owner) || approved(token_id).unwrap() == spender)
 }
 
-/**
-    * @notice Creates a new lock.
-    * @param recipient The user that the lock will be minted to.
-    * @param amount The amount of PIDA in the lock.
-    * @param end The end of the lock.
-    * @param xp_lock_id The ID of the new lock.
-*/
+pub fn get_msg_sender_address_or_panic() -> Address {
+    let sender: Result<Identity, AuthError> = msg_sender();
+    if let Identity::Address(address) = sender.unwrap() {
+        address
+    } else {
+        revert(0);
+    }
+}
+
+#[storage(read)]
+fn validate_owner() {
+    let sender = get_msg_sender_address_or_panic();
+    assert(storage.owner == sender);
+}
+
+#[storage(read)]
+fn exists_internal(token_id: u64) -> bool {
+    let owner = owner_of(token_id);
+    let mut state = false;
+    if (owner.is_none()) {
+        state = false;
+    } else {
+        state = true;
+    }
+    state
+}
+
+#[storage(read)]
+fn token_exists(token_id: u64) {
+    assert(exists_internal(token_id) == true);
+}
+
+
+#[storage(read)]
+fn token_of_owner_by_index(owner: Address, index: u64) -> u64 {
+    assert(index < balance_of(Identity::Address(owner)));
+    let outer_map = storage.owned_tokens.get(owner).unwrap();
+    let inner_map = outer_map.token_id;
+    inner_map
+}
+
+#[storage(read, write)]
+fn add_token_to_owner_enumeration(to: Address, token_id: u64) {
+    let length = balance_of(Identity::Address(to));
+    let map = IndexMap {
+        index: length,
+        token_id: token_id,
+    };
+
+    storage.owned_tokens.insert(to, map);
+
+}
+
+
 #[storage(read, write)]
 fn create_lock_internal(
     recipient: Identity, 
@@ -145,160 +249,6 @@ fn create_lock_internal(
     xp_lock_id
 }
 
-pub fn get_msg_sender_address_or_panic() -> Address {
-    let sender: Result<Identity, AuthError> = msg_sender();
-    if let Identity::Address(address) = sender.unwrap() {
-        address
-    } else {
-        revert(0);
-    }
-}
-
-#[storage(read)]
-fn validate_owner() {
-    let sender = get_msg_sender_address_or_panic();
-    assert(storage.owner == sender);
-}
-
-#[storage(read)]
-fn exists_internal(token_id: u64) -> bool {
-    let owner = owner_of(token_id);
-    let mut state = false;
-    if (owner.is_none()) {
-        state = false;
-    } else {
-        state = true;
-    }
-    state
-}
-
-#[storage(read)]
-fn token_exists(token_id: u64) {
-    assert(exists_internal(token_id) == true);
-}
-
-/**
-    * @notice Information about a lock.
-    * @param xp_lock_id The ID of the lock to query.
-    * @return lock_ Information about the lock.
-*/
-#[storage(read)]
-fn locks_internal(xp_lock_id: u64) -> Lock {
-    token_exists(xp_lock_id);
-    storage.locks.get(xp_lock_id).unwrap()
-}
-
-/**
-    * @notice Determines if the lock is locked.
-    * @param xp_lock_id The ID of the lock to query.
-    * @return locked True if the lock is locked, false if unlocked.
-*/
-#[storage(read)]
-fn is_locked_internal(xp_lock_id: u64) -> bool {
-    token_exists(xp_lock_id);
-    let locks = storage.locks.get(xp_lock_id).unwrap();
-    locks.end > timestamp()
-}
-
-/**
-    * @notice Determines the time left until the lock unlocks.
-    * @param xsLockID The ID of the lock to query.
-    * @return time The time left in seconds, 0 if unlocked.
-*/
-#[storage(read)]
-fn time_left_internal(xp_lock_id: u64) -> u64 {
-    let mut time = 0;
-    token_exists(xp_lock_id);
-    let locks = storage.locks.get(xp_lock_id).unwrap();
-    if ((locks.end > timestamp()) == true) {
-        time = locks.end - timestamp(); // locked
-    } else {
-        time = 0; // unlocked
-    }
-    time
-}
-
-/**
-    * @notice Returns the amount of PIDA the user has staked.
-    * @param account The account to query.
-    * @return balance The user's balance.
-*/
-#[storage(read)]
-fn staked_balance_internal(account: Address) -> u64 {
-    let num_of_locks = balance_of(Identity::Address(account));
-    let mut balance = 0;
-    let mut i = 0;
-    while (i < num_of_locks) {
-        let xp_lock_id = token_of_owner_by_index(account, i);
-        balance += storage.locks.get(xp_lock_id).unwrap().amount;
-        i = i + 1;
-    };
-
-    balance
-}
-
-/**
-    * @notice The list of contracts that are listening to lock updates.
-    * @return listeners_ The list as an array.
-*/
-#[storage(read)]
-fn get_xp_lock_listeners_internal() -> Vec<ContractId> {
-    let len = storage.xp_lock_listeners.len();
-    let mut listeners = Vec::new();
-    let mut index = 0;
-    while (index < len) {
-        listeners.push(storage.xp_lock_listeners.get(index).unwrap());
-        index = index + 1;
-    };
-
-    listeners
-}
-
-#[storage(read)]
-fn token_of_owner_by_index(owner: Address, index: u64) -> u64 {
-    assert(index < balance_of(Identity::Address(owner)));
-    let outer_map = storage.owned_tokens.get(owner).unwrap();
-    let inner_map = outer_map.token_id;
-    inner_map
-}
-
-#[storage(read, write)]
-fn add_token_to_owner_enumeration(to: Address, token_id: u64) {
-    let length = balance_of(Identity::Address(to));
-    let map = IndexMap {
-        index: length,
-        token_id: token_id,
-    };
-
-    storage.owned_tokens.insert(to, map);
-
-}
-
-#[storage(read)]
-fn notify_internal(
-    xp_lock_id: u64,
-    old_owner: Address,
-    new_owner: Address,
-    old_lock: Lock,
-    new_lock: Lock,
-) {
-    // register action with listener
-    let len = storage.xp_lock_listeners.len();
-    let mut i = 0;
-    while (i < len) {
-        let listener_id = storage.xp_lock_listeners.get(i).unwrap();
-        let listener_abi = abi(Staking, ContractId::into(listener_id));
-        listener_abi.register_lock_event(
-            xp_lock_id,
-            old_owner,
-            new_owner,
-            old_lock,
-            new_lock,
-        );
-        i = i + 1;
-    }
-}
-
 #[storage(read, write)]
 fn update_lock(xp_lock_id: u64, amount: u64, end: u64) {
     // checks
@@ -349,6 +299,31 @@ fn withdraw_internal(xp_lock_id: u64, amount: u64) {
             amount: amount,        
         }
     );
+}
+
+#[storage(read)]
+fn notify_internal(
+    xp_lock_id: u64,
+    old_owner: Address,
+    new_owner: Address,
+    old_lock: Lock,
+    new_lock: Lock,
+) {
+    // register action with listener
+    let len = storage.xp_lock_listeners.len();
+    let mut i = 0;
+    while (i < len) {
+        let listener_id = storage.xp_lock_listeners.get(i).unwrap();
+        let listener_abi = abi(Staking, ContractId::into(listener_id));
+        listener_abi.register_lock_event(
+            xp_lock_id,
+            old_owner,
+            new_owner,
+            old_lock,
+            new_lock,
+        );
+        i = i + 1;
+    }
 }
 
 impl Locker for Contract {
@@ -504,11 +479,6 @@ impl Locker for Contract {
     GOVERNANCE FUNCTIONS
     ***************************************/
 
-    /**
-     * @notice Adds a listener.
-     * Can only be called by the current owner.
-     * @param listener The listener to add.
-    */
     #[storage(read, write)]
     fn add_xp_lock_listener(listener: ContractId) {
         validate_owner();
@@ -524,11 +494,6 @@ impl Locker for Contract {
         );
     }
 
-    /**
-     * @notice Removes a listener.
-     * Can only be called by the current owner.
-     * @param listener The listener to remove.
-    */
     #[storage(read, write)]
     fn remove_xp_lock_listener(listener: ContractId) -> bool {
         validate_owner();
@@ -546,11 +511,6 @@ impl Locker for Contract {
         removed_map
     }
 
-    /**
-     * @notice Sets the base URI for computing `tokenURI`.
-     * Can only be called by the current owner.
-     * @param baseURI The new base URI.
-    */
     #[storage(read, write)]
     fn set_base_uri(base_uri: str[32]) {
         validate_owner();
