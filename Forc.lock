@@ -8,12 +8,18 @@ name = 'bond_teller'
 source = 'member'
 dependencies = [
     'bond_registry_abi',
+    'bond_teller_abi',
     'libraries',
     'locker_abi',
     'nft',
     'reentrancy',
     'std',
 ]
+
+[[package]]
+name = 'bond_teller_abi'
+source = 'path+from-root-8D2BF65ED81619DA'
+dependencies = ['std']
 
 [[package]]
 name = 'bonds_registry'

@@ -123,6 +123,12 @@ fn create_lock_internal(
         end: 0,
     };
 
+    let mut tnl = storage.total_num_locks;
+    tnl = xp_lock_id;
+    storage.total_num_locks = tnl;
+
+    add_token_to_owner_enumeration(as_address(recipient).unwrap(), xp_lock_id);
+
     notify_internal(
         xp_lock_id, 
         Address::from(ZERO_B256),
@@ -130,12 +136,6 @@ fn create_lock_internal(
         empty_lock,
         new_lock,
     );
-
-    let mut tnl = storage.total_num_locks;
-    tnl = xp_lock_id;
-    storage.total_num_locks = tnl;
-
-    add_token_to_owner_enumeration(as_address(recipient).unwrap(), xp_lock_id);
 
     log(
         LockCreated {

@@ -7,6 +7,7 @@ name = "bond_teller"
 [dependencies]
 bond_registry_abi = { path = "../abis/bond_registry_abi" }
 locker_abi = { path = "../abis/locker_abi" }
+bond_teller_abi = { path = "../abis/bond_teller_abi" }
 libraries = { path = "../libraries" }
 nft = { git = "https://github.com/FuelLabs/sway-libs", tag = "v0.8.0" }
 reentrancy = { git = "https://github.com/FuelLabs/sway-libs", tag = "v0.8.0" }
