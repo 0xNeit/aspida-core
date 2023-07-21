@@ -347,6 +347,7 @@ impl Staking for Contract {
         let mut i = 0;
         while (i < len) {
             harvest_internal(xp_lock_ids.get(i).unwrap());
+            i = i + 1;
         }
     }
 }

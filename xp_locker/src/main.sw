@@ -3,26 +3,33 @@ contract;
 mod events;
 
 use std::constants::*;
+use std::assert::*;
 use std::block::*;
 use std::auth::msg_sender;
 use std::token::*;
 use std::storage::*;
 use std::auth::*;
 use std::vec::*;
+use std::call_frames::*;
 
 use nft::{
     balance_of,
+    is_approved_for_all,
     mint,
     owner_of,
+    approved,
     tokens_minted,
 };
 
 use nft::extensions::token_metadata::*;
 
+use nft::extensions::burnable::*;
+
 use events::*;
 
 use token_abi::PIDA;
 use locker_abi::{ Lock, Locker };
+use staking_abi::*;
 
 use reentrancy::*;
 
@@ -72,6 +79,19 @@ fn as_address(to: Identity) -> Option<Address> {
     }
 }
 
+pub fn as_contract_id(to: Identity) -> Option<ContractId> {
+    match to {
+        Identity::Address(_) => Option::None,
+        Identity::ContractId(id) => Option::Some(id),
+    }
+}
+
+#[storage(read)]
+fn is_approved_or_owner(spender: Identity, token_id: u64) -> bool {
+    let owner = owner_of(token_id).unwrap();
+    (spender == owner || is_approved_for_all(spender, owner) || approved(token_id).unwrap() == spender)
+}
+
 /**
     * @notice Creates a new lock.
     * @param recipient The user that the lock will be minted to.
@@ -80,7 +100,7 @@ fn as_address(to: Identity) -> Option<Address> {
     * @param xp_lock_id The ID of the new lock.
 */
 #[storage(read, write)]
-fn _create_lock(
+fn create_lock_internal(
     recipient: Identity, 
     amount: u64, 
     end: u64
@@ -105,6 +125,20 @@ fn _create_lock(
         xp_lock_id += 1;
     }
     storage.locks.insert(xp_lock_id, new_lock);
+
+    let empty_lock = Lock {
+        amount: 0,
+        end: 0,
+    };
+
+    notify_internal(
+        xp_lock_id, 
+        Address::from(ZERO_B256),
+        as_address(recipient).unwrap(),
+        empty_lock,
+        new_lock,
+    );
+
     let mut tnl = storage.total_num_locks;
     tnl = xp_lock_id;
     storage.total_num_locks = tnl;
@@ -168,7 +202,7 @@ fn locks_internal(xp_lock_id: u64) -> Lock {
     * @return locked True if the lock is locked, false if unlocked.
 */
 #[storage(read)]
-fn is_locked(xp_lock_id: u64) -> bool {
+fn is_locked_internal(xp_lock_id: u64) -> bool {
     token_exists(xp_lock_id);
     let locks = storage.locks.get(xp_lock_id).unwrap();
     locks.end > timestamp()
@@ -180,7 +214,7 @@ fn is_locked(xp_lock_id: u64) -> bool {
     * @return time The time left in seconds, 0 if unlocked.
 */
 #[storage(read)]
-fn time_left(xp_lock_id: u64) -> u64 {
+fn time_left_internal(xp_lock_id: u64) -> u64 {
     let mut time = 0;
     token_exists(xp_lock_id);
     let locks = storage.locks.get(xp_lock_id).unwrap();
@@ -190,6 +224,42 @@ fn time_left(xp_lock_id: u64) -> u64 {
         time = 0; // unlocked
     }
     time
+}
+
+/**
+    * @notice Returns the amount of PIDA the user has staked.
+    * @param account The account to query.
+    * @return balance The user's balance.
+*/
+#[storage(read)]
+fn staked_balance_internal(account: Address) -> u64 {
+    let num_of_locks = balance_of(Identity::Address(account));
+    let mut balance = 0;
+    let mut i = 0;
+    while (i < num_of_locks) {
+        let xp_lock_id = token_of_owner_by_index(account, i);
+        balance += storage.locks.get(xp_lock_id).unwrap().amount;
+        i = i + 1;
+    };
+
+    balance
+}
+
+/**
+    * @notice The list of contracts that are listening to lock updates.
+    * @return listeners_ The list as an array.
+*/
+#[storage(read)]
+fn get_xp_lock_listeners_internal() -> Vec<ContractId> {
+    let len = storage.xp_lock_listeners.len();
+    let mut listeners = Vec::new();
+    let mut index = 0;
+    while (index < len) {
+        listeners.push(storage.xp_lock_listeners.get(index).unwrap());
+        index = index + 1;
+    };
+
+    listeners
 }
 
 #[storage(read)]
@@ -212,43 +282,82 @@ fn add_token_to_owner_enumeration(to: Address, token_id: u64) {
 
 }
 
-/**
-    * @notice Returns the amount of PIDA the user has staked.
-    * @param account The account to query.
-    * @return balance The user's balance.
-*/
 #[storage(read)]
-fn staked_balance(account: Address) -> u64 {
-    let num_of_locks = balance_of(Identity::Address(account));
-    let mut balance = 0;
-    let mut i = 0;
-    while (i < num_of_locks) {
-        let xp_lock_id = token_of_owner_by_index(account, i);
-        balance += storage.locks.get(xp_lock_id).unwrap().amount;
-        i = i + 1;
-    };
-
-    balance
-}
-
-/**
-    * @notice The list of contracts that are listening to lock updates.
-    * @return listeners_ The list as an array.
-*/
-#[storage(read)]
-fn get_xp_lock_listeners() -> Vec<ContractId> {
+fn notify_internal(
+    xp_lock_id: u64,
+    old_owner: Address,
+    new_owner: Address,
+    old_lock: Lock,
+    new_lock: Lock,
+) {
+    // register action with listener
     let len = storage.xp_lock_listeners.len();
-    let mut listeners = Vec::new();
-    let mut index = 0;
-    while (index < len) {
-        listeners.push(storage.xp_lock_listeners.get(index).unwrap());
-        index = index + 1;
-    };
-
-    listeners
+    let mut i = 0;
+    while (i < len) {
+        let listener_id = storage.xp_lock_listeners.get(i).unwrap();
+        let listener_abi = abi(Staking, ContractId::into(listener_id));
+        listener_abi.register_lock_event(
+            xp_lock_id,
+            old_owner,
+            new_owner,
+            old_lock,
+            new_lock,
+        );
+        i = i + 1;
+    }
 }
 
+#[storage(read, write)]
+fn update_lock(xp_lock_id: u64, amount: u64, end: u64) {
+    // checks
+    let prev_lock = storage.locks.get(xp_lock_id).unwrap();
+    let new_lock = Lock {
+        amount: amount,
+        end: end,
+    };
 
+    // accounting
+    storage.locks.insert(xp_lock_id, new_lock);
+    let owner = as_address(owner_of(xp_lock_id).unwrap()).unwrap();
+    notify_internal(xp_lock_id, owner, owner, prev_lock, new_lock);
+
+    log(
+        LockUpdated {
+            xp_lock_id: xp_lock_id,
+            amount: amount,
+            end: new_lock.end,
+        }
+    );
+}
+
+#[storage(read, write)]
+fn withdraw_internal(xp_lock_id: u64, amount: u64) {
+    assert(storage.locks.get(xp_lock_id).unwrap().end <= timestamp());
+
+    if (amount == storage.locks.get(xp_lock_id).unwrap().amount) {
+        let deleted_meta: Option<LockMeta> = Option::None;
+        set_token_metadata(deleted_meta, xp_lock_id);
+        burn(xp_lock_id);
+        let _ = storage.locks.remove(xp_lock_id);
+    } else {
+        let old_lock = storage.locks.get(xp_lock_id).unwrap();
+        let new_lock = Lock {
+            amount: old_lock.amount - amount,
+            end: old_lock.end
+        };
+        storage.locks.insert(xp_lock_id, new_lock);
+
+        let owner =  as_address(owner_of(xp_lock_id).unwrap()).unwrap();
+        notify_internal(xp_lock_id, owner, owner, old_lock, new_lock);
+    }
+
+    log(
+        Withdraw {
+            xp_lock_id: xp_lock_id,
+            amount: amount,        
+        }
+    );
+}
 
 impl Locker for Contract {
 
@@ -261,6 +370,10 @@ impl Locker for Contract {
         storage.owner = owner;
     }
 
+    /***************************************
+    VIEW FUNCTIONS
+    ***************************************/
+
     #[storage(read)]
     fn exists(token_id: u64) -> bool {
         return exists_internal(token_id);
@@ -269,6 +382,26 @@ impl Locker for Contract {
     #[storage(read)]
     fn locks(xp_lock_id: u64) -> Lock {
         return locks_internal(xp_lock_id);
+    }
+
+    #[storage(read)]
+    fn is_locked(xp_lock_id: u64) -> bool {
+        return is_locked_internal(xp_lock_id);
+    }
+
+    #[storage(read)]
+    fn time_left(xp_lock_id: u64) -> u64 {
+        return time_left_internal(xp_lock_id);
+    }
+
+    #[storage(read)]
+    fn staked_balance(account: Address) -> u64 {
+        return staked_balance_internal(account);
+    }
+
+    #[storage(read)]
+    fn get_xp_lock_listeners() -> Vec<ContractId> {
+        return get_xp_lock_listeners_internal();
     }
 
     /***************************************
@@ -291,17 +424,88 @@ impl Locker for Contract {
         end: u64
     ) -> u64 {
         reentrancy_guard();
-        let sender = get_msg_sender_address_or_panic();
         // pull pida
-        transfer_to_address(
+        transfer(
             amount, 
-            ContractId::from(get::<b256>(storage.pida.value).unwrap()),
-            sender
+            storage.pida,
+            Identity::ContractId(contract_id())
         );
         // accounting
-        let new_lock = _create_lock(recipient, amount, end);
+        let new_lock = create_lock_internal(recipient, amount, end);
         
         new_lock
+    }
+
+    #[storage(read, write)]
+    fn increase_amount(xp_lock_id: u64, amount: u64) {
+        reentrancy_guard();
+        // pull pida
+        transfer(amount, storage.pida, Identity::ContractId(contract_id()));
+        // accounting
+        let new_amount = storage.locks.get(xp_lock_id).unwrap().amount + amount;
+        update_lock(xp_lock_id, new_amount, storage.locks.get(xp_lock_id).unwrap().end);
+    }
+
+    #[storage(read, write)]
+    fn extend_lock(xp_lock_id: u64, end: u64) {
+        reentrancy_guard();
+
+        let sender = msg_sender().unwrap();
+        assert(is_approved_or_owner(sender, xp_lock_id));
+
+        assert(end <= timestamp() + MAX_LOCK_DURATION);
+        assert(storage.locks.get(xp_lock_id).unwrap().end <= end);
+        update_lock(xp_lock_id, storage.locks.get(xp_lock_id).unwrap().amount, end);
+    }
+
+    #[storage(read, write)]
+    fn withdraw(xp_lock_id: u64, recipient: Identity) {
+        reentrancy_guard();
+
+        let sender = msg_sender().unwrap();
+        assert(is_approved_or_owner(sender, xp_lock_id));
+
+        let amount = storage.locks.get(xp_lock_id).unwrap().amount;
+        withdraw_internal(xp_lock_id, amount);
+
+        // transfer pida
+        transfer(amount, storage.pida, recipient);
+    }
+
+    #[storage(read, write)]
+    fn withdraw_in_part(xp_lock_id: u64, recipient: Identity, amount: u64) {
+        reentrancy_guard();
+
+        let sender = msg_sender().unwrap();
+        assert(is_approved_or_owner(sender, xp_lock_id));
+
+        assert(amount <= storage.locks.get(xp_lock_id).unwrap().amount);
+        withdraw_internal(xp_lock_id, amount);
+
+        // transfer pida
+        transfer(amount, storage.pida, recipient);
+    }
+
+    #[storage(read, write)]
+    fn withdraw_many(xp_lock_ids: Vec<u64>, recipient: Identity) {
+        reentrancy_guard();
+
+        let sender = msg_sender().unwrap();
+        let len = xp_lock_ids.len();
+        let mut amount = 0;
+        let mut i = 0;
+
+        while (i < len) {
+            let xp_lock_id = xp_lock_ids.get(i).unwrap();
+            assert(is_approved_or_owner(sender, xp_lock_id));
+            let new_amount = storage.locks.get(xp_lock_id).unwrap().amount;
+            amount = amount + new_amount;
+            withdraw_internal(xp_lock_id, new_amount);
+            i = i + 1;
+        };
+
+        // transfer pida
+        transfer(amount, storage.pida, recipient);
     }
 
     /***************************************

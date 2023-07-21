@@ -118,6 +118,7 @@ dependencies = [
     'locker_abi',
     'nft',
     'reentrancy',
+    'staking_abi',
     'std',
     'token_abi',
 ]
