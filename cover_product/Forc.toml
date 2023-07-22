@@ -6,3 +6,4 @@ name = "cover_product"
 
 [dependencies]
 registry_abi = { path = "../abis/registry_abi" }
+cover_product_abi = { path = "../abis/cover_product_abi" }

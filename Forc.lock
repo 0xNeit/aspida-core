@@ -46,15 +46,24 @@ dependencies = [
 [[package]]
 name = 'cover_points'
 source = 'member'
-dependencies = ['std']
+dependencies = [
+    'cover_product_abi',
+    'std',
+]
 
 [[package]]
 name = 'cover_product'
 source = 'member'
 dependencies = [
+    'cover_product_abi',
     'registry_abi',
     'std',
 ]
+
+[[package]]
+name = 'cover_product_abi'
+source = 'path+from-root-0C7931A87EF02EF2'
+dependencies = ['std']
 
 [[package]]
 name = 'libraries'

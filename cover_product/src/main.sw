@@ -10,6 +10,7 @@ use std::storage::*;
 use events::*;
 use structs::*;
 use registry_abi::*;
+use cover_product_abi::*;
 
 pub enum ChargePeriod {
     Hourly: Hourly,
@@ -106,6 +107,33 @@ fn is_annually(period: ChargePeriod) -> bool {
     }
 }
 
+#[storage(read)]
+fn policy_status(policy_id: u64) -> bool {
+    if (storage.cover_limit_of.get(policy_id).unwrap() > 0) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+#[storage(read)]
+fn min_required_account_balance(cover_limit: u64) -> u64 {
+    let max_rate_num = storage.max_rate_num;
+    let charge_cycle = storage.charge_cycle;
+    let max_rate_denom = storage.max_rate_denom;
+    let result = (max_rate_num * charge_cycle * cover_limit) / max_rate_denom;
+    return result;
+}
+
+#[storage(read)]
+fn min_acp_required_internal(policy_holder: Address) -> u64 {
+    let policy = storage.policy_of.get(policy_holder).unwrap();
+    if (policy_status(policy)) {
+        return min_required_account_balance(storage.cover_limit_of.get(policy).unwrap());
+    }
+    return 0;
+}
+
 fn set_registry_internal(registry: ContractId) {
     // set registry
     assert(registry != ContractId::from(ZERO_B256));
@@ -145,12 +173,9 @@ fn get_charge_period_value(period: ChargePeriod) -> u64 {
     }
 }
 
-abi CoverProduct {
-    fn test_function() -> bool;
-}
-
 impl CoverProduct for Contract {
-    fn test_function() -> bool {
-        true
+    #[storage(read)]
+    fn min_acp_required(policy_holder: Address) -> u64 {
+        return min_acp_required_internal(policy_holder);
     }
 }

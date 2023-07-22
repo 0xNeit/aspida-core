@@ -2,7 +2,6 @@
 authors = ["Nate"]
 entry = "main.sw"
 license = "Apache-2.0"
-name = "cover_points"
+name = "cover_product_abi"
 
 [dependencies]
-cover_product_abi = { path = "../abis/cover_product_abi" }
