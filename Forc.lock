@@ -35,7 +35,7 @@ name = 'core'
 source = 'path+from-root-67732E1923984E25'
 
 [[package]]
-name = 'cover_payment'
+name = 'cover_payment_manager'
 source = 'member'
 dependencies = ['std']
 

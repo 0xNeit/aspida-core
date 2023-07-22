@@ -3,7 +3,7 @@ members = [
     "pida", 
     "bonds_registry", 
     "bond_teller", 
-    "cover_payment",
+    "cover_payment_manager",
     "cover_points",
     "cover_product",
     "xp_locker", 
