@@ -16,7 +16,9 @@ use structs::*;
 
 storage {
     executors: StorageVec<Address> = StorageVec {},
-    owner: Address = Address { value: ZERO_B256 },
+    owner: Address = Address {
+        value: ZERO_B256,
+    },
 }
 
 abi Executor {
@@ -33,20 +35,10 @@ abi Executor {
     fn is_executor(executor: Address) -> bool;
 
     #[storage(read)]
-    fn verify_price(
-        token: ContractId,
-        price: u64,
-        deadline: u64,
-        signature: B512,
-    ) -> bool;
+    fn verify_price(token: ContractId, price: u64, deadline: u64, signature: B512) -> bool;
 
     #[storage(read)]
-    fn verify_premium(
-        premium: u64,
-        policy_holder: Address,
-        deadline: u64,
-        signature: B512,
-    ) -> bool;
+    fn verify_premium(premium: u64, policy_holder: Address, deadline: u64, signature: B512) -> bool;
 
     #[storage(read, write)]
     fn add_executor(executor: Address);
@@ -75,7 +67,7 @@ fn is_executor_internal(executor: Address) -> bool {
     let mut index = 0;
     let len = storage.executors.len();
     let mut answer = false;
-     while (index < len) {
+    while (index < len) {
         if (storage.executors.get(index).unwrap() == executor) {
             answer = true;
         } else {
@@ -97,7 +89,6 @@ impl Executor for Contract {
     /***************************************
     VIEW FUNCTIONS
     ***************************************/
-
     #[storage(read)]
     fn num_executors() -> u64 {
         let len = storage.executors.len();
@@ -118,7 +109,6 @@ impl Executor for Contract {
     /***************************************
     VERIFY FUNCTIONS
     ***************************************/
-
     #[storage(read)]
     fn verify_price(
         token: ContractId,
@@ -175,18 +165,15 @@ impl Executor for Contract {
     /***************************************
     GOVERNANCE FUNCTIONS
     ***************************************/
-
     #[storage(read, write)]
     fn add_executor(executor: Address) {
         validate_owner();
         assert(executor != Address::from(ZERO_B256));
         storage.executors.push(executor);
 
-        log(
-            ExecutorAdded {
-                executor: executor,
-            }
-        );
+        log(ExecutorAdded {
+            executor: executor,
+        });
     }
 
     #[storage(read, write)]
