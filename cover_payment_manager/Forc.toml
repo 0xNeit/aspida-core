@@ -5,3 +5,5 @@ license = "Apache-2.0"
 name = "cover_payment_manager"
 
 [dependencies]
+token_abi = { path = "../abis/token_abi" }
+registry_abi = { path = "../abis/registry_abi" }

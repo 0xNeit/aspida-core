@@ -87,7 +87,7 @@ impl BondsRegistry for Contract {
         // check that caller is a registered teller
         assert(storage.is_teller.get(sender).unwrap() == true);
         // mint new PIDA
-        let pida_call = abi(PIDA, storage.pida.value);
+        let pida_call = abi(FRC20, storage.pida.value);
         pida_call.mint(amount);
     }
 

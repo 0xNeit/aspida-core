@@ -27,7 +27,7 @@ use nft::extensions::burnable::*;
 
 use events::*;
 
-use token_abi::PIDA;
+use token_abi::*;
 use locker_abi::{ Lock, Locker };
 use staking_abi::*;
 

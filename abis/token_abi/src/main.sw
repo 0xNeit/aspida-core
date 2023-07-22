@@ -1,6 +1,6 @@
 library;
 
-abi PIDA {
+abi FRC20 {
     // Initialize contract
     #[storage(read, write)]
     fn initialize(config: TokenInitializeConfig, owner: Address);

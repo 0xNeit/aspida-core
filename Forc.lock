@@ -37,7 +37,11 @@ source = 'path+from-root-67732E1923984E25'
 [[package]]
 name = 'cover_payment_manager'
 source = 'member'
-dependencies = ['std']
+dependencies = [
+    'registry_abi',
+    'std',
+    'token_abi',
+]
 
 [[package]]
 name = 'cover_points'
@@ -54,7 +58,7 @@ dependencies = [
 
 [[package]]
 name = 'libraries'
-source = 'path+from-root-8D2BF65ED81619DA'
+source = 'member'
 dependencies = ['std']
 
 [[package]]
@@ -90,7 +94,7 @@ dependencies = [
 
 [[package]]
 name = 'registry_abi'
-source = 'path+from-root-289D6415E3C49920'
+source = 'path+from-root-C7431EDF40F5C4C6'
 dependencies = ['std']
 
 [[package]]

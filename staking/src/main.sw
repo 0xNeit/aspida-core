@@ -9,7 +9,7 @@ use std::call_frames::contract_id;
 
 use registry_abi::Registry;
 use locker_abi::{ Lock, Locker };
-use token_abi::PIDA;
+use token_abi::*;
 use staking_abi::*;
 use events::*;
 use nft::{
@@ -207,7 +207,7 @@ fn update_lock(xp_lock_id: u64) -> (u64, Address) {
     let mut transfer_amount = 0;
     lock_info.unpaid_rewards += lock_info.value * acc_reward_per_share / Q12 - lock_info.reward_debt;
     if (lock_info.owner != Address::from(ZERO_B256)) {
-        let pida_abi = abi(PIDA, storage.pida.value);
+        let pida_abi = abi(FRC20, storage.pida.value);
         let balance = pida_abi.balance_of(Identity::ContractId(contract_id()));
         transfer_amount = min(lock_info.unpaid_rewards, balance);
         lock_info.unpaid_rewards -= transfer_amount;
@@ -251,7 +251,7 @@ fn update_lock(xp_lock_id: u64) -> (u64, Address) {
 fn harvest_internal(xp_lock_id: u64) {
     let (transfer_amount, receiver) = update_lock(xp_lock_id);
     if ( receiver != Address::from(ZERO_B256) && transfer_amount != 0) {
-        let pida_abi = abi(PIDA, storage.pida.value);
+        let pida_abi = abi(FRC20, storage.pida.value);
         pida_abi.transfer(transfer_amount, receiver);
     }
 }

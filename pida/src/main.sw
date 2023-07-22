@@ -61,7 +61,7 @@ fn validate_owner() {
     assert(storage.owner == sender);
 }
 
-impl PIDA for Contract {
+impl FRC20 for Contract {
     //////////////////////////////////////
     // Owner methods
     //////////////////////////////////////

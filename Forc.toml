@@ -8,5 +8,6 @@ members = [
     "cover_product",
     "xp_locker", 
     "staking", 
-    "registry"
+    "registry",
+    "libraries"
 ]
