@@ -7,6 +7,7 @@ use std::constants::ZERO_B256;
 use std::assert::*;
 use std::storage::*;
 use std::b512::B512;
+use std::token::*;
 
 use events::*;
 use structs::*;
@@ -14,6 +15,7 @@ use token_abi::*;
 use executor_abi::*;
 use registry_abi::*;
 use cover_points_abi::*;
+use premium_pool_abi::*;
 
 storage {
     registry: ContractId = ContractId { value: ZERO_B256 },
@@ -88,6 +90,26 @@ fn get_refundable_pida_amount(
 
         return pida_amount;
 }
+
+/*fn withdraw_internal(
+    from: Identity,
+    amount: u64,
+    recipient: Identity,
+    price: u64,
+    price_deadline: u64,
+    signature: B512,
+) {
+    assert(amount > 0);
+    assert(abi(Executor, storage.executor.value).verify_price(storage.pida, price, price_deadline, signature));
+    let refundable_pida_amount = get_refundable_pida_amount(from, price, price_deadline, signature);
+    assert(amount <= refundable_pida_amount);
+
+    let acp_amount = (amount * price) / pow(10, 18u8);
+    abi(ACP, storage.acp.value).withdraw(from, acp_amount);
+    transfer(amount, storage.pida, )
+    SafeERC20.safeTransferFrom(IERC20(solace), premiumPool, recipient, amount);
+    emit TokenWithdrawn(from, recipient, amount);
+}*/
 
 #[storage(write)]
 fn set_registry_internal(registry: ContractId) {

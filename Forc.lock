@@ -122,6 +122,19 @@ source = 'member'
 dependencies = ['std']
 
 [[package]]
+name = 'premium_pool'
+source = 'member'
+dependencies = [
+    'premium_pool_abi',
+    'std',
+]
+
+[[package]]
+name = 'premium_pool_abi'
+source = 'path+from-root-5030CF927E816A73'
+dependencies = ['std']
+
+[[package]]
 name = 'reentrancy'
 source = 'git+https://github.com/FuelLabs/sway-libs?tag=v0.8.0#f6bb5c234e020d556e1bc688e0f1f368dc9b0f9a'
 dependencies = ['std']

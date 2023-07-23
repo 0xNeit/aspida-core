@@ -11,6 +11,7 @@ members = [
     "libraries",
     "pida",
     "policy_manager",
+    "premium_pool",
     "registry",
     "risk_manager",
     "risk_strategy",
