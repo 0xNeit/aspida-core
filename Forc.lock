@@ -40,6 +40,7 @@ source = 'member'
 dependencies = [
     'cover_points_abi',
     'executor_abi',
+    'premium_pool_abi',
     'registry_abi',
     'std',
     'token_abi',
@@ -131,7 +132,7 @@ dependencies = [
 
 [[package]]
 name = 'premium_pool_abi'
-source = 'path+from-root-5030CF927E816A73'
+source = 'path+from-root-C7431EDF40F5C4C6'
 dependencies = ['std']
 
 [[package]]

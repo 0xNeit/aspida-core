@@ -17,15 +17,6 @@ fn balance_internal(token: ContractId) -> u64 {
     return this_balance(token);
 }
 
-fn get_msg_sender_address_or_panic() -> Address {
-    let sender: Result<Identity, AuthError> = msg_sender();
-    if let Identity::Address(address) = sender.unwrap() {
-        address
-    } else {
-        revert(0);
-    }
-}
-
 impl PremiumPool for Contract {
     #[storage(read, write)]
     fn initialize(owner: Address) {
@@ -42,11 +33,10 @@ impl PremiumPool for Contract {
         return balance_internal(token);
     }
 
-    fn withdraw(amount: u64, token: ContractId) {
+    fn withdraw(amount: u64, token: ContractId, to: Identity) {
         assert(balance_internal(token) >= amount);
         assert(amount > 0);
 
-        let sender = get_msg_sender_address_or_panic();
-        transfer_to_address(amount, token, sender);
+        transfer(amount, token, to);
     }
 }

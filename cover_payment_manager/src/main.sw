@@ -30,6 +30,10 @@ storage {
     executor: ContractId = ContractId { value: ZERO_B256 },
 }
 
+/***************************************
+    INTERNAL FUNCTIONS
+***************************************/
+
 fn as_address(to: Identity) -> Option<Address> {
     match to {
         Identity::Address(addr) => Option::Some(addr),
@@ -91,7 +95,66 @@ fn get_refundable_pida_amount(
         return pida_amount;
 }
 
-/*fn withdraw_internal(
+#[storage(read)]
+fn deposit_stable_internal(
+    token: ContractId,
+    from: Identity,
+    recipient: Identity,
+    amount: u64,
+) {
+  // checks
+  let ti = storage.token_info.get(token).unwrap();
+  assert(ti.accepted);
+  assert(ti.stable);
+
+  // interactions
+  let acp_amount = convert_decimals(amount, token, storage.acp);
+  abi(PremiumPool, storage.premium_pool.value).withdraw(amount, token, from);
+  abi(ACP, storage.acp.value).mint(recipient, acp_amount, ti.refundable);
+
+  log(
+        TokenDeposited {
+            token: token, 
+            depositor: from, 
+            receiver: recipient, 
+            amount: amount,
+        }
+  );
+}
+
+#[storage(read)]
+fn deposit_non_stable_internal(
+    token: ContractId,
+    from: Identity,
+    recipient: Identity,
+    amount: u64,
+    price: u64,
+    price_deadline: u64,
+    signature: B512,
+) {
+    // checks
+    let ti = storage.token_info.get(token).unwrap();
+    assert(ti.accepted);
+    assert(!ti.stable);
+    assert(abi(Executor, storage.executor.value).verify_price(token, price, price_deadline, signature));
+
+    // interactions
+    let acp_amount = (amount * price) / pow(10, 18u8);
+    abi(PremiumPool, storage.premium_pool.value).withdraw(amount, token, from);
+    abi(ACP, storage.pida.value).mint(recipient, acp_amount, true);
+
+    log(
+        TokenDeposited {
+            token: token, 
+            depositor: from, 
+            receiver: recipient, 
+            amount: amount,
+        }
+    );
+}
+
+#[storage(read)]
+fn withdraw_internal(
     from: Identity,
     amount: u64,
     recipient: Identity,
@@ -106,10 +169,16 @@ fn get_refundable_pida_amount(
 
     let acp_amount = (amount * price) / pow(10, 18u8);
     abi(ACP, storage.acp.value).withdraw(from, acp_amount);
-    transfer(amount, storage.pida, )
-    SafeERC20.safeTransferFrom(IERC20(solace), premiumPool, recipient, amount);
-    emit TokenWithdrawn(from, recipient, amount);
-}*/
+    abi(PremiumPool, storage.premium_pool.value).withdraw(amount, storage.pida, recipient);
+    
+    log(
+        TokenWithdrawn {
+            depositor: from, 
+            receiver: recipient, 
+            amount: amount,
+        }
+    );
+}
 
 #[storage(write)]
 fn set_registry_internal(registry: ContractId) {

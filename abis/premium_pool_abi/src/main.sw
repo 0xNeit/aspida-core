@@ -8,5 +8,5 @@ abi PremiumPool {
 
     fn balance(token: ContractId) -> u64;
 
-    fn withdraw(amount: u64, token: ContractId);
+    fn withdraw(amount: u64, token: ContractId, to: Identity);
 }
