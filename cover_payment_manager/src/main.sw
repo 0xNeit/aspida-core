@@ -6,11 +6,14 @@ mod structs;
 use std::constants::ZERO_B256;
 use std::assert::*;
 use std::storage::*;
+use std::b512::B512;
 
 use events::*;
 use structs::*;
 use token_abi::*;
+use executor_abi::*;
 use registry_abi::*;
+use cover_points_abi::*;
 
 storage {
     registry: ContractId = ContractId { value: ZERO_B256 },
@@ -22,11 +25,30 @@ storage {
     index_to_token: StorageMap<u64, ContractId> = StorageMap {},
     products: StorageVec<ContractId> = StorageVec {},
     tokens_length: u64 = 0,
+    executor: ContractId = ContractId { value: ZERO_B256 },
+}
+
+fn as_address(to: Identity) -> Option<Address> {
+    match to {
+        Identity::Address(addr) => Option::Some(addr),
+        Identity::ContractId(_) => Option::None,
+    }
+}
+
+fn max(a: u64, b: u64) -> u64 {
+    let mut answer: u64 = 0;
+    if (a > b) {
+        answer = a;
+    } else {
+        answer = b;
+    }
+
+    answer
 }
 
 #[storage(read)]
 fn while_unpaused() {
-    assert(!storage.paused);
+    assert(storage.paused == false);
 }
 
 fn pow(num: u64, exponent: u8) -> u64 {
@@ -34,6 +56,37 @@ fn pow(num: u64, exponent: u8) -> u64 {
         exp r3 r1 r2;
         r3: u64
     }
+}
+
+#[storage(read)]
+fn get_refundable_pida_amount(
+        depositor: Identity,
+        price: u64,
+        price_deadline: u64,
+        signature: B512,
+    ) -> u64 {
+        // check price
+        assert(abi(Executor, storage.executor.value).verify_price(storage.pida, price, price_deadline, signature));
+        let acp = abi(ACP, storage.acp.value);
+        let acp_balance = acp.balance_of(depositor);
+        let min_required_acp = acp.min_acp_required(as_address(depositor).unwrap());
+        let nr_acp_balance = acp.balance_of_non_refundable(depositor);
+        let non_refundable_acp =  max(min_required_acp, nr_acp_balance);
+        let mut refundable_acp_balance = 0;
+        if (acp_balance > non_refundable_acp) {
+            refundable_acp_balance = acp_balance - non_refundable_acp;
+        } else {
+            refundable_acp_balance = 0;
+        };
+
+        let mut pida_amount = 0;
+        if (refundable_acp_balance > 0) {
+            pida_amount = refundable_acp_balance * pow(10, 18u8) / price;
+        } else {
+            pida_amount = 0;
+        };
+
+        return pida_amount;
 }
 
 #[storage(write)]

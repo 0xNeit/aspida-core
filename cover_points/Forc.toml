@@ -5,4 +5,5 @@ license = "Apache-2.0"
 name = "cover_points"
 
 [dependencies]
+cover_points_abi = { path = "../abis/cover_points_abi" }
 cover_product_abi = { path = "../abis/cover_product_abi" }

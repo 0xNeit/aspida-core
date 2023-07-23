@@ -38,6 +38,8 @@ source = 'path+from-root-67732E1923984E25'
 name = 'cover_payment_manager'
 source = 'member'
 dependencies = [
+    'cover_points_abi',
+    'executor_abi',
     'registry_abi',
     'std',
     'token_abi',
@@ -47,9 +49,15 @@ dependencies = [
 name = 'cover_points'
 source = 'member'
 dependencies = [
+    'cover_points_abi',
     'cover_product_abi',
     'std',
 ]
+
+[[package]]
+name = 'cover_points_abi'
+source = 'path+from-root-C7431EDF40F5C4C6'
+dependencies = ['std']
 
 [[package]]
 name = 'cover_product'
@@ -73,6 +81,11 @@ dependencies = ['std']
 [[package]]
 name = 'executor'
 source = 'member'
+dependencies = ['std']
+
+[[package]]
+name = 'executor_abi'
+source = 'path+from-root-C7431EDF40F5C4C6'
 dependencies = ['std']
 
 [[package]]

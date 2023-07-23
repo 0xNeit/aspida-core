@@ -6,4 +6,6 @@ name = "cover_payment_manager"
 
 [dependencies]
 token_abi = { path = "../abis/token_abi" }
+executor_abi = { path = "../abis/executor_abi" }
 registry_abi = { path = "../abis/registry_abi" }
+cover_points_abi = { path = "../abis/cover_points_abi" }
