@@ -1,13 +1,20 @@
 [workspace]
 members = [
-    "pida", 
+    "bond_teller",
     "bonds_registry", 
-    "bond_teller", 
     "cover_payment_manager",
     "cover_points",
     "cover_product",
-    "xp_locker", 
-    "staking", 
+    "data_provider",
+    "executor",
+    "faucet",
+    "libraries",
+    "pida",
+    "policy_manager",
     "registry",
-    "libraries"
+    "risk_manager",
+    "risk_strategy",
+    "staking",
+    "ve_pida", 
+    "xp_locker"
 ]

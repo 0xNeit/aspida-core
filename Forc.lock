@@ -66,6 +66,21 @@ source = 'path+from-root-0C7931A87EF02EF2'
 dependencies = ['std']
 
 [[package]]
+name = 'data_provider'
+source = 'member'
+dependencies = ['std']
+
+[[package]]
+name = 'executor'
+source = 'member'
+dependencies = ['std']
+
+[[package]]
+name = 'faucet'
+source = 'member'
+dependencies = ['std']
+
+[[package]]
 name = 'libraries'
 source = 'member'
 dependencies = ['std']
@@ -89,6 +104,11 @@ dependencies = [
 ]
 
 [[package]]
+name = 'policy_manager'
+source = 'member'
+dependencies = ['std']
+
+[[package]]
 name = 'reentrancy'
 source = 'git+https://github.com/FuelLabs/sway-libs?tag=v0.8.0#f6bb5c234e020d556e1bc688e0f1f368dc9b0f9a'
 dependencies = ['std']
@@ -104,6 +124,16 @@ dependencies = [
 [[package]]
 name = 'registry_abi'
 source = 'path+from-root-C7431EDF40F5C4C6'
+dependencies = ['std']
+
+[[package]]
+name = 'risk_manager'
+source = 'member'
+dependencies = ['std']
+
+[[package]]
+name = 'risk_strategy'
+source = 'member'
 dependencies = ['std']
 
 [[package]]
@@ -135,6 +165,11 @@ dependencies = ['core']
 [[package]]
 name = 'token_abi'
 source = 'path+from-root-4154CF0C5574A2C3'
+dependencies = ['std']
+
+[[package]]
+name = 've_pida'
+source = 'member'
 dependencies = ['std']
 
 [[package]]
