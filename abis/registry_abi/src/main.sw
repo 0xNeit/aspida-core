@@ -5,14 +5,14 @@ abi Registry {
     fn initialize(owner: Address);
 
     #[storage(read)]
-    fn get(key: str[20]) -> ContractId;
+    fn get(key: str[20]) -> Identity;
 
     #[storage(read)]
-    fn try_get(key: str[20]) -> (bool, ContractId);
+    fn try_get(key: str[20]) -> (bool, Identity);
 
     #[storage(read)]
     fn get_key(index: u64) -> str[20];
 
     #[storage(read, write)]
-    fn set(keys: Vec<str[20]>, values: Vec<ContractId>);
+    fn set(keys: Vec<str[20]>, values: Vec<Identity>);
 }

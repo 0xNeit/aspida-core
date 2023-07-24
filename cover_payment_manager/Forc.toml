@@ -10,3 +10,4 @@ executor_abi = { path = "../abis/executor_abi" }
 registry_abi = { path = "../abis/registry_abi" }
 cover_points_abi = { path = "../abis/cover_points_abi" }
 premium_pool_abi = { path = "../abis/premium_pool_abi" }
+reentrancy = { git = "https://github.com/FuelLabs/sway-libs", tag = "v0.8.0" }

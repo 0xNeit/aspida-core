@@ -60,6 +60,13 @@ const MAX_BPS: u64 = 10000;
 // multiplier to increase precision
 const Q12: u64 = 1_000_000_000_000;
 
+fn as_contract_id(to: Identity) -> Option<ContractId> {
+    match to {
+        Identity::Address(_) => Option::None,
+        Identity::ContractId(id) => Option::Some(id),
+    }
+}
+
 /**
     * @notice Sets registry and related contract addresses.
     * @param _registry The registry address to set.
@@ -79,20 +86,20 @@ fn set_registry_internal(registry: ContractId) {
 
     // set pcp
     let (_, cpm_addr) = new_reg.try_get("coverPaymentManager ");
-    assert(cpm_addr != ContractId::from(ZERO_B256));
-    cpm = cpm_addr;
+    assert(cpm_addr != Identity::ContractId(ContractId::from(ZERO_B256)));
+    cpm = as_contract_id(cpm_addr).unwrap();
     storage.cover_payment_manager = cpm;
 
     // set pida
     let (_, pida_addr) = new_reg.try_get("pida                ");
-    assert(pida_addr != ContractId::from(ZERO_B256));
-    pida = pida_addr;
+    assert(pida_addr != Identity::ContractId(ContractId::from(ZERO_B256)));
+    pida = as_contract_id(pida_addr).unwrap();
     storage.pida = pida;
 
     // set xplocker
     let (_, xp_locker_addr) = new_reg.try_get("xpLocker            ");
-    assert(xp_locker_addr != ContractId::from(ZERO_B256));
-    xplocker = xp_locker_addr;
+    assert(xp_locker_addr != Identity::ContractId(ContractId::from(ZERO_B256)));
+    xplocker = as_contract_id(xp_locker_addr).unwrap();
     storage.xp_locker = xplocker;
 
     log(

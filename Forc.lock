@@ -41,6 +41,7 @@ dependencies = [
     'cover_points_abi',
     'executor_abi',
     'premium_pool_abi',
+    'reentrancy',
     'registry_abi',
     'std',
     'token_abi',
@@ -82,7 +83,10 @@ dependencies = ['std']
 [[package]]
 name = 'executor'
 source = 'member'
-dependencies = ['std']
+dependencies = [
+    'executor_abi',
+    'std',
+]
 
 [[package]]
 name = 'executor_abi'

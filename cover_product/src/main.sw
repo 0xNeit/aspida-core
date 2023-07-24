@@ -52,6 +52,13 @@ storage {
     INTERNAL FUNCTIONS
 ***************************************/
 
+fn as_contract_id(to: Identity) -> Option<ContractId> {
+    match to {
+        Identity::Address(_) => Option::None,
+        Identity::ContractId(id) => Option::Some(id),
+    }
+}
+
 #[storage(read)]
 fn while_unpaused() {
     assert(!storage.paused);
@@ -142,14 +149,14 @@ fn set_registry_internal(registry: ContractId) {
     // set risk manager
     let registry_abi = abi(Registry, registry.value);
     let (_, risk_manager_addr) = registry_abi.try_get("riskManager         ");
-    assert(risk_manager_addr != ContractId::from(ZERO_B256));
+    assert(risk_manager_addr != Identity::ContractId(ContractId::from(ZERO_B256)));
 
-    storage.risk_manager = risk_manager_addr;
+    storage.risk_manager = as_contract_id(risk_manager_addr).unwrap();
 
     // set cover payment manager
     let (_, payment_manager_addr) = registry_abi.try_get("coverPaymentManager ");
-    assert(payment_manager_addr != ContractId::from(ZERO_B256));
-    storage.payment_manager = payment_manager_addr;
+    assert(payment_manager_addr != Identity::ContractId(ContractId::from(ZERO_B256)));
+    storage.payment_manager = as_contract_id(payment_manager_addr).unwrap();
 
     log(
         RegistrySet {

@@ -257,7 +257,7 @@ impl ACP for Contract {
         let bnr = storage.balances_non_refundable.get(account).unwrap();
         let br = sub_or_zero(bal, bnr);
         assert(br >= amount);
-        let min_acp = min_acp_required(as_address(account).unwrap());
+        let min_acp = min_acp_required_internal(as_address(account).unwrap());
         let new_bal = bal - amount;
         assert(new_bal >= min_acp);
         // effects

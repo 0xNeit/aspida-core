@@ -11,7 +11,7 @@ use events::*;
 
 pub struct RegistryEntry {
     index: u64,
-    value: ContractId,
+    value: Identity,
 }
 
 storage {
@@ -51,18 +51,18 @@ impl Registry for Contract {
     ***************************************/
 
     #[storage(read)]
-    fn get(key: str[20]) -> ContractId {
+    fn get(key: str[20]) -> Identity {
         let entry = storage.ids.get(key).unwrap();
         assert(entry.index != 0);
         entry.value
     }
 
     #[storage(read)]
-    fn try_get(key: str[20]) -> (bool, ContractId) {
+    fn try_get(key: str[20]) -> (bool, Identity) {
         let entry = storage.ids.get(key).unwrap();
-        let mut tuple = (false, ContractId::from(ZERO_B256));
+        let mut tuple = (false, Identity::ContractId(ContractId::from(ZERO_B256)));
         if (entry.index == 0) {
-            tuple = (false, ContractId::from(ZERO_B256));
+            tuple = (false, Identity::ContractId(ContractId::from(ZERO_B256)));
         } else {
             tuple = (true, entry.value);
         }
@@ -81,13 +81,13 @@ impl Registry for Contract {
     ***************************************/
 
     #[storage(read, write)]
-    fn set(keys: Vec<str[20]>, values: Vec<ContractId>) {
+    fn set(keys: Vec<str[20]>, values: Vec<Identity>) {
         validate_owner();
         let len = keys.len();
         assert(len == values.len());
         let mut i = 0;
         while (i < len) {
-            assert(values.get(i).unwrap() != ContractId::from(ZERO_B256));
+            assert(values.get(i).unwrap() != Identity::ContractId(ContractId::from(ZERO_B256)));
             let key = keys.get(i).unwrap();
             let value = values.get(i).unwrap();
             let mut entry = storage.ids.get(key).unwrap();

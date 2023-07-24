@@ -13,6 +13,7 @@ use std::ecr::*;
 
 use events::*;
 use structs::*;
+use executor_abi::*;
 
 storage {
     executors: StorageVec<Address> = StorageVec {},
