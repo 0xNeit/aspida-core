@@ -78,7 +78,10 @@ dependencies = ['std']
 [[package]]
 name = 'data_provider'
 source = 'member'
-dependencies = ['std']
+dependencies = [
+    'reentrancy',
+    'std',
+]
 
 [[package]]
 name = 'executor'

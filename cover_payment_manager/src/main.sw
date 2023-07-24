@@ -196,9 +196,9 @@ fn withdraw_internal(
     let pida_contract = storage.pida;
     let acp_id = storage.acp.value;
     let premium_pool_id = storage.premium_pool.value;
+    let refundable_pida_amount = get_refundable_pida_amount(from, price, price_deadline, signature);
 
     assert(abi(Executor, executor_id).verify_price(pida_contract, price, price_deadline, signature));
-    let refundable_pida_amount = get_refundable_pida_amount(from, price, price_deadline, signature);
     assert(amount <= refundable_pida_amount);
 
     let acp_amount = (amount * price) / pow(10, 18u8);
@@ -478,15 +478,18 @@ impl CPM for Contract {
         while_unpaused();
 
         let sender = msg_sender().unwrap();
+        let owner_store = storage.owner;
+        let acp_id = storage.acp.value;
+        let is_active = product_is_active_internal(as_contract_id(sender).unwrap());
 
         assert(sender == abi(Registry, storage.registry.value).get("premiumCollector    ") ||
-            as_address(sender).unwrap() == storage.owner ||
-            product_is_active_internal(as_contract_id(sender).unwrap()),
+            as_address(sender).unwrap() == owner_store ||
+            is_active,
         );
 
         assert(accounts.len() == premiums.len());
         
-        abi(ACP, storage.acp.value).burn_multiple(accounts, premiums);
+        abi(ACP, acp_id).burn_multiple(accounts, premiums);
     }
 
     /***************************************
