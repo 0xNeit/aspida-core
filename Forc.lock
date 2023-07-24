@@ -99,7 +99,10 @@ dependencies = ['std']
 [[package]]
 name = 'faucet'
 source = 'member'
-dependencies = ['std']
+dependencies = [
+    'std',
+    'token_abi',
+]
 
 [[package]]
 name = 'libraries'

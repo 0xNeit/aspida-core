@@ -5,3 +5,5 @@ license = "Apache-2.0"
 name = "faucet"
 
 [dependencies]
+
+token_abi = { path = "../abis/token_abi" }
