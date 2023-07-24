@@ -5,4 +5,5 @@ license = "Apache-2.0"
 name = "data_provider"
 
 [dependencies]
+data_provider_abi = { path = "../abis/data_provider_abi" }
 reentrancy = { git = "https://github.com/FuelLabs/sway-libs", tag = "v0.8.0" }

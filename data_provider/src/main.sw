@@ -8,6 +8,7 @@ use std::auth::*;
 
 use events::*;
 use reentrancy::*;
+use data_provider_abi::*;
 
 storage {
     owner: Address = Address { value: ZERO_B256 },
@@ -154,38 +155,6 @@ fn remove_internal(uwp_names: Vec<str[20]>) {
     storage.max_cover = cover;
 }
 
-abi DataProvider {
-    #[storage(read, write)]
-    fn initialize(owner: Address);
-
-    #[storage(read, write)]
-    fn set(uwp_names: Vec<str[20]>, amounts: Vec<u64>);
-
-    #[storage(read, write)]
-    fn remove(uwp_names: Vec<str[20]>);
-
-    #[storage(read)]
-    fn balance_of(uwp_name: str[20]) -> u64;
-
-    #[storage(read)]
-    fn pool_of(index: u64) -> str[20];
-
-    #[storage(read)]
-    fn is_updater(updater: Identity) -> bool;
-
-    #[storage(read)]
-    fn updater_at(index: u64) -> Identity;
-
-    #[storage(read)]
-    fn nums_of_updater() -> u64;
-
-    #[storage(read, write)]
-    fn add_updater(updater: Identity);
-
-    #[storage(read, write)]
-    fn remove_updater(updater: Identity);
-}
-
 impl DataProvider for Contract {
     #[storage(read, write)]
     fn initialize(owner: Address) {
@@ -216,6 +185,19 @@ impl DataProvider for Contract {
     /***************************************
      VIEW FUNCTIONS
     ***************************************/
+
+    #[storage(read)]
+    fn max_cover() -> u64 {
+        let pools = storage.num_of_pools;
+        let mut i = pools;
+        let mut cover = 0;
+        while (i > 0) {
+            let name = storage.index_to_uwp.get(i).unwrap();
+            cover += storage.uwp_balance_of.get(name).unwrap();
+            i = i - 1;
+        }
+        return cover;
+    }
 
     #[storage(read)]
     fn balance_of(uwp_name: str[20]) -> u64 {

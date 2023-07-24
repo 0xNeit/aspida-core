@@ -79,9 +79,15 @@ dependencies = ['std']
 name = 'data_provider'
 source = 'member'
 dependencies = [
+    'data_provider_abi',
     'reentrancy',
     'std',
 ]
+
+[[package]]
+name = 'data_provider_abi'
+source = 'path+from-root-703181AB1A897426'
+dependencies = ['std']
 
 [[package]]
 name = 'executor'
@@ -166,7 +172,11 @@ dependencies = ['std']
 [[package]]
 name = 'risk_manager'
 source = 'member'
-dependencies = ['std']
+dependencies = [
+    'data_provider_abi',
+    'registry_abi',
+    'std',
+]
 
 [[package]]
 name = 'risk_strategy'
