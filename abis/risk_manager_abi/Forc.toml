@@ -2,7 +2,6 @@
 authors = ["Nate"]
 entry = "main.sw"
 license = "Apache-2.0"
-name = "risk_strategy"
+name = "risk_manager_abi"
 
 [dependencies]
-risk_manager_abi = { path = "../abis/risk_manager_abi" }

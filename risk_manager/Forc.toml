@@ -7,3 +7,4 @@ name = "risk_manager"
 [dependencies]
 registry_abi = { path = "../abis/registry_abi" }
 data_provider_abi = { path = "../abis/data_provider_abi" }
+risk_manager_abi = { path = "../abis/risk_manager_abi" }

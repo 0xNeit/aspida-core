@@ -175,13 +175,22 @@ source = 'member'
 dependencies = [
     'data_provider_abi',
     'registry_abi',
+    'risk_manager_abi',
     'std',
 ]
 
 [[package]]
+name = 'risk_manager_abi'
+source = 'path+from-root-DF3EB86AAEFC381A'
+dependencies = ['std']
+
+[[package]]
 name = 'risk_strategy'
 source = 'member'
-dependencies = ['std']
+dependencies = [
+    'risk_manager_abi',
+    'std',
+]
 
 [[package]]
 name = 'staking'
