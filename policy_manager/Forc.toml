@@ -5,3 +5,7 @@ license = "Apache-2.0"
 name = "policy_manager"
 
 [dependencies]
+cover_product_abi = { path = "../abis/cover_product_abi" }
+registry_abi = { path = "../abis/registry_abi" }
+risk_manager_abi = { path = "../abis/risk_manager_abi" }
+nft = { git = "https://github.com/FuelLabs/sway-libs", tag = "v0.8.0" }

@@ -6,11 +6,13 @@ mod structs;
 use std::constants::ZERO_B256;
 use std::assert::*;
 use std::storage::*;
+use std::call_frames::*;
 
 use events::*;
 use structs::*;
 use registry_abi::*;
 use cover_product_abi::*;
+use risk_manager_abi::*;
 
 pub enum ChargePeriod {
     Hourly: Hourly,
@@ -180,9 +182,19 @@ fn get_charge_period_value(period: ChargePeriod) -> u64 {
     }
 }
 
+#[storage(read)]
+fn update_active_cover_limit_internal(current_cover_limit: u64, new_cover_limit: u64) {
+    abi(RiskManager, storage.risk_manager.value).update_active_cover_limit_for_strategy(contract_id(), current_cover_limit, new_cover_limit);
+} 
+
 impl CoverProduct for Contract {
     #[storage(read)]
     fn min_acp_required(policy_holder: Address) -> u64 {
         return min_acp_required_internal(policy_holder);
     }
+
+    #[storage(read)]
+    fn update_active_cover_limit(current_cover_limit: u64, new_cover_limit: u64) {
+        update_active_cover_limit_internal(current_cover_limit, new_cover_limit);
+    } 
 }

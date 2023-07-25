@@ -67,6 +67,7 @@ source = 'member'
 dependencies = [
     'cover_product_abi',
     'registry_abi',
+    'risk_manager_abi',
     'std',
 ]
 
@@ -136,7 +137,13 @@ dependencies = [
 [[package]]
 name = 'policy_manager'
 source = 'member'
-dependencies = ['std']
+dependencies = [
+    'cover_product_abi',
+    'nft',
+    'registry_abi',
+    'risk_manager_abi',
+    'std',
+]
 
 [[package]]
 name = 'premium_pool'
@@ -181,7 +188,7 @@ dependencies = [
 
 [[package]]
 name = 'risk_manager_abi'
-source = 'path+from-root-DF3EB86AAEFC381A'
+source = 'path+from-root-289D6415E3C49920'
 dependencies = ['std']
 
 [[package]]
