@@ -35,7 +35,7 @@ abi ACP {
     fn withdraw(account: Identity, amount: u64);
 
     #[storage(read)]
-    fn min_acp_required(account: Address) -> u64;
+    fn min_acp_required(account: Identity) -> u64;
     
     #[storage(read)]
     fn is_acp_mover(account: Identity) -> bool;

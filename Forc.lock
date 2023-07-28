@@ -39,6 +39,7 @@ name = 'cover_payment_manager'
 source = 'member'
 dependencies = [
     'cover_points_abi',
+    'cpm_abi',
     'executor_abi',
     'premium_pool_abi',
     'reentrancy',
@@ -66,6 +67,10 @@ name = 'cover_product'
 source = 'member'
 dependencies = [
     'cover_product_abi',
+    'cpm_abi',
+    'executor_abi',
+    'nft',
+    'reentrancy',
     'registry_abi',
     'risk_manager_abi',
     'std',
@@ -74,6 +79,11 @@ dependencies = [
 [[package]]
 name = 'cover_product_abi'
 source = 'path+from-root-0C7931A87EF02EF2'
+dependencies = ['std']
+
+[[package]]
+name = 'cpm_abi'
+source = 'path+from-root-C7431EDF40F5C4C6'
 dependencies = ['std']
 
 [[package]]

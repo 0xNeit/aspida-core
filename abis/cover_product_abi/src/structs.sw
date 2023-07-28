@@ -30,6 +30,14 @@ impl core::ops::Eq for Weekly {
     }
 }
 
+impl Weekly {
+    pub fn new() -> Self {
+        Self {
+            value: 604800,
+        }
+    }
+}
+
 pub struct Monthly {
     value: u64,
 }

@@ -104,7 +104,7 @@ fn burn_internal(account: Identity, amount: u64) {
 }
 
 #[storage(read)]
-fn min_acp_required_internal(account: Address) -> u64 {
+fn min_acp_required_internal(account: Identity) -> u64 {
     let mut amount = 0;
     let len = storage.acp_retainers_vec.len();
     let mut i = 0;
@@ -257,7 +257,7 @@ impl ACP for Contract {
         let bnr = storage.balances_non_refundable.get(account).unwrap();
         let br = sub_or_zero(bal, bnr);
         assert(br >= amount);
-        let min_acp = min_acp_required_internal(as_address(account).unwrap());
+        let min_acp = min_acp_required_internal(account);
         let new_bal = bal - amount;
         assert(new_bal >= min_acp);
         // effects
@@ -270,7 +270,7 @@ impl ACP for Contract {
     MOVER AND RETAINER FUNCTIONS
     ***************************************/
     #[storage(read)]
-    fn min_acp_required(account: Address) -> u64 {
+    fn min_acp_required(account: Identity) -> u64 {
         return min_acp_required_internal(account);
     }
 
