@@ -53,6 +53,7 @@ storage {
     total_num_locks: u64 = 0,
     locks: StorageMap<u64, Lock> = StorageMap {},
     owned_tokens: StorageMap<Address, IndexMap> = StorageMap {},
+    all_tokens: StorageVec<u64> = StorageVec {}, 
     xp_lock_listeners: StorageVec<ContractId> = StorageVec {},
     listeners_map: StorageMap<ContractId, u64> = StorageMap {},
     base_uri: str[32] = "                                ",
@@ -96,7 +97,7 @@ fn staked_balance_internal(account: Address) -> u64 {
     let mut balance = 0;
     let mut i = 0;
     while (i < num_of_locks) {
-        let xp_lock_id = token_of_owner_by_index(account, i);
+        let xp_lock_id = token_of_owner_by_index_internal(account, i);
         balance += storage.locks.get(xp_lock_id).unwrap().amount;
         i = i + 1;
     };
@@ -175,7 +176,7 @@ fn token_exists(token_id: u64) {
 
 
 #[storage(read)]
-fn token_of_owner_by_index(owner: Address, index: u64) -> u64 {
+fn token_of_owner_by_index_internal(owner: Address, index: u64) -> u64 {
     assert(index < balance_of(Identity::Address(owner)));
     let outer_map = storage.owned_tokens.get(owner).unwrap();
     let inner_map = outer_map.token_id;
@@ -232,6 +233,7 @@ fn create_lock_internal(
     storage.total_num_locks = tnl;
 
     add_token_to_owner_enumeration(as_address(recipient).unwrap(), xp_lock_id);
+    storage.all_tokens.push(xp_lock_id);
 
     notify_internal(
         xp_lock_id, 
@@ -352,6 +354,11 @@ impl Locker for Contract {
     }
 
     #[storage(read)]
+    fn balance_of(account: Identity) -> u64 {
+        return balance_of(account);
+    }
+
+    #[storage(read)]
     fn is_locked(xp_lock_id: u64) -> bool {
         return is_locked_internal(xp_lock_id);
     }
@@ -369,6 +376,22 @@ impl Locker for Contract {
     #[storage(read)]
     fn get_xp_lock_listeners() -> Vec<ContractId> {
         return get_xp_lock_listeners_internal();
+    }
+
+    #[storage(read)]
+    fn token_of_owner_by_index(owner: Identity, index: u64) -> u64 {
+        return token_of_owner_by_index_internal(as_address(owner).unwrap(), index);
+    }
+
+    #[storage(read)]
+    fn total_supply() -> u64 {
+        return storage.all_tokens.len();
+    }
+
+    #[storage(read)]
+    fn token_by_index(index: u64) -> u64 {
+        assert(index < storage.all_tokens.len());
+        return storage.all_tokens.get(index).unwrap();
     }
 
     /***************************************

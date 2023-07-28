@@ -16,6 +16,9 @@ abi Locker {
     fn locks(xp_lock_id: u64) -> Lock;
 
     #[storage(read)]
+    fn balance_of(account: Identity) -> u64;
+
+    #[storage(read)]
     fn is_locked(xp_lock_id: u64) -> bool;
 
     #[storage(read)]
@@ -26,6 +29,15 @@ abi Locker {
 
     #[storage(read)]
     fn get_xp_lock_listeners() -> Vec<ContractId>;
+
+    #[storage(read)]
+    fn token_of_owner_by_index(owner: Identity, index: u64) -> u64;
+
+    #[storage(read)]
+    fn total_supply() -> u64;
+
+    #[storage(read)]
+    fn token_by_index(index: u64) -> u64; 
 
     #[storage(read, write)]
     fn create_lock(
