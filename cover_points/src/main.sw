@@ -264,7 +264,6 @@ impl ACP for Contract {
         storage.total_supply -= amount;
         storage.balances.insert(account, new_bal)
     }
-    
 
     /***************************************
     MOVER AND RETAINER FUNCTIONS

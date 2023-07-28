@@ -9,9 +9,7 @@ use std::call_frames::contract_id;
 
 use token_abi::*;
 
-
 const MAX_SUPPLY: u64 = 1000000000000000000; // 1 Billion
-
 storage {
     config: TokenInitializeConfig = TokenInitializeConfig {
         name: "            ",
@@ -35,16 +33,12 @@ pub fn get_msg_sender_address_or_panic() -> Address {
     }
 }
 
-
 #[storage(read)]
 fn is_minter(account: Address) -> bool {
     let answer = storage.minters.get(account).unwrap();
     answer
 }
 
-/**
-    * @dev Returns the amount of tokens owned by `account`.
-*/
 #[storage(read)]
 fn balance_of_internal(account: Identity) -> u64 {
     let balance = storage.balances.get(account).unwrap();
@@ -82,7 +76,7 @@ impl FRC20 for Contract {
         mint_to_address(amount, sender);
         storage.total_supply = (storage.total_supply + amount);
     }
-    
+
     #[storage(read, write)]
     fn mint_to(account: Address, amount: u64) {
         assert(amount <= MAX_SUPPLY);
@@ -95,7 +89,6 @@ impl FRC20 for Contract {
         storage.total_supply = (storage.total_supply + amount);
     }
 
-    
     #[storage(read)]
     fn burn(amount: u64) {
         let sender = msg_sender().unwrap();
@@ -108,14 +101,12 @@ impl FRC20 for Contract {
         balance_of_internal(account)
     }
 
-    
     #[storage(read, write)]
     fn add_minter(minter: Address) {
         validate_owner();
         storage.minters.insert(minter, true);
     }
 
-    
     #[storage(read, write)]
     fn remove_minter(minter: Address) -> bool {
         validate_owner();

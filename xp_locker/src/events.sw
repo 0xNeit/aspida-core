@@ -5,13 +5,13 @@ pub struct LockCreated {
 }
 
 pub struct LockUpdated {
-    xp_lock_id: u64, 
-    amount: u64, 
-    end: u64
+    xp_lock_id: u64,
+    amount: u64,
+    end: u64,
 }
-    
+
 pub struct Withdraw {
-    xp_lock_id: u64, 
+    xp_lock_id: u64,
     amount: u64,
 }
 

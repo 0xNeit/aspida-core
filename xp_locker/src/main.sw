@@ -12,14 +12,7 @@ use std::auth::*;
 use std::vec::*;
 use std::call_frames::*;
 
-use nft::{
-    balance_of,
-    is_approved_for_all,
-    mint,
-    owner_of,
-    approved,
-    tokens_minted,
-};
+use nft::{approved, balance_of, is_approved_for_all, mint, owner_of, tokens_minted};
 
 use nft::extensions::token_metadata::*;
 
@@ -28,7 +21,7 @@ use nft::extensions::burnable::*;
 use events::*;
 
 use token_abi::*;
-use locker_abi::{ Lock, Locker };
+use locker_abi::{Lock, Locker};
 use staking_abi::*;
 
 use reentrancy::*;
@@ -53,17 +46,13 @@ storage {
     total_num_locks: u64 = 0,
     locks: StorageMap<u64, Lock> = StorageMap {},
     owned_tokens: StorageMap<Address, IndexMap> = StorageMap {},
-    all_tokens: StorageVec<u64> = StorageVec {}, 
+    all_tokens: StorageVec<u64> = StorageVec {},
     xp_lock_listeners: StorageVec<ContractId> = StorageVec {},
     listeners_map: StorageMap<ContractId, u64> = StorageMap {},
     base_uri: str[32] = "                                ",
 }
 
 const MAX_LOCK_DURATION: u64 = 126_144_000;
-
-/***************************************
-    VIEW FUNCTIONS
-***************************************/
 
 #[storage(read)]
 fn locks_internal(xp_lock_id: u64) -> Lock {
@@ -118,10 +107,6 @@ fn get_xp_lock_listeners_internal() -> Vec<ContractId> {
     listeners
 }
 
-/***************************************
-    HELPER FUNCTIONS
-***************************************/
-
 fn as_address(to: Identity) -> Option<Address> {
     match to {
         Identity::Address(addr) => Option::Some(addr),
@@ -174,7 +159,6 @@ fn token_exists(token_id: u64) {
     assert(exists_internal(token_id) == true);
 }
 
-
 #[storage(read)]
 fn token_of_owner_by_index_internal(owner: Address, index: u64) -> u64 {
     assert(index < balance_of(Identity::Address(owner)));
@@ -192,16 +176,10 @@ fn add_token_to_owner_enumeration(to: Address, token_id: u64) {
     };
 
     storage.owned_tokens.insert(to, map);
-
 }
 
-
 #[storage(read, write)]
-fn create_lock_internal(
-    recipient: Identity, 
-    amount: u64, 
-    end: u64
-) -> u64 {
+fn create_lock_internal(recipient: Identity, amount: u64, end: u64) -> u64 {
     let new_lock = Lock {
         amount: amount,
         end: end,
@@ -214,7 +192,7 @@ fn create_lock_internal(
     let mut xp_lock_id = tokens_minted() - amount;
     let meta = LockMeta {
         name: "xPIDA Lock",
-        symbol: "xpLOCK"
+        symbol: "xpLOCK",
     };
 
     while xp_lock_id < tokens_minted() {
@@ -235,19 +213,11 @@ fn create_lock_internal(
     add_token_to_owner_enumeration(as_address(recipient).unwrap(), xp_lock_id);
     storage.all_tokens.push(xp_lock_id);
 
-    notify_internal(
-        xp_lock_id, 
-        Address::from(ZERO_B256),
-        as_address(recipient).unwrap(),
-        empty_lock,
-        new_lock,
-    );
+    notify_internal(xp_lock_id, Address::from(ZERO_B256), as_address(recipient).unwrap(), empty_lock, new_lock);
 
-    log(
-        LockCreated {
-            xp_lock_id: xp_lock_id,
-        }
-    );
+    log(LockCreated {
+        xp_lock_id: xp_lock_id,
+    });
     xp_lock_id
 }
 
@@ -265,20 +235,19 @@ fn update_lock(xp_lock_id: u64, amount: u64, end: u64) {
     let owner = as_address(owner_of(xp_lock_id).unwrap()).unwrap();
     notify_internal(xp_lock_id, owner, owner, prev_lock, new_lock);
 
-    log(
-        LockUpdated {
-            xp_lock_id: xp_lock_id,
-            amount: amount,
-            end: new_lock.end,
-        }
-    );
+    log(LockUpdated {
+        xp_lock_id: xp_lock_id,
+        amount: amount,
+        end: new_lock.end,
+    });
 }
 
 #[storage(read, write)]
 fn withdraw_internal(xp_lock_id: u64, amount: u64) {
     assert(storage.locks.get(xp_lock_id).unwrap().end <= timestamp());
 
-    if (amount == storage.locks.get(xp_lock_id).unwrap().amount) {
+    if (amount == storage.locks.get(xp_lock_id).unwrap().amount)
+    {
         let deleted_meta: Option<LockMeta> = Option::None;
         set_token_metadata(deleted_meta, xp_lock_id);
         burn(xp_lock_id);
@@ -287,20 +256,18 @@ fn withdraw_internal(xp_lock_id: u64, amount: u64) {
         let old_lock = storage.locks.get(xp_lock_id).unwrap();
         let new_lock = Lock {
             amount: old_lock.amount - amount,
-            end: old_lock.end
+            end: old_lock.end,
         };
         storage.locks.insert(xp_lock_id, new_lock);
 
-        let owner =  as_address(owner_of(xp_lock_id).unwrap()).unwrap();
+        let owner = as_address(owner_of(xp_lock_id).unwrap()).unwrap();
         notify_internal(xp_lock_id, owner, owner, old_lock, new_lock);
     }
 
-    log(
-        Withdraw {
-            xp_lock_id: xp_lock_id,
-            amount: amount,        
-        }
-    );
+    log(Withdraw {
+        xp_lock_id: xp_lock_id,
+        amount: amount,
+    });
 }
 
 #[storage(read)]
@@ -317,19 +284,12 @@ fn notify_internal(
     while (i < len) {
         let listener_id = storage.xp_lock_listeners.get(i).unwrap();
         let listener_abi = abi(Staking, ContractId::into(listener_id));
-        listener_abi.register_lock_event(
-            xp_lock_id,
-            old_owner,
-            new_owner,
-            old_lock,
-            new_lock,
-        );
+        listener_abi.register_lock_event(xp_lock_id, old_owner, new_owner, old_lock, new_lock);
         i = i + 1;
     }
 }
 
 impl Locker for Contract {
-
     #[storage(read, write)]
     fn initialize(owner: Address, pida: ContractId) {
         assert(pida != ContractId::from(ZERO_B256));
@@ -342,7 +302,6 @@ impl Locker for Contract {
     /***************************************
     VIEW FUNCTIONS
     ***************************************/
-
     #[storage(read)]
     fn exists(token_id: u64) -> bool {
         return exists_internal(token_id);
@@ -397,24 +356,14 @@ impl Locker for Contract {
     /***************************************
     MUTATOR FUNCTIONS
     ***************************************/
-
-    
     #[storage(read, write)]
-    fn create_lock(
-        recipient: Identity, 
-        amount: u64, 
-        end: u64
-    ) -> u64 {
+    fn create_lock(recipient: Identity, amount: u64, end: u64) -> u64 {
         reentrancy_guard();
         // pull pida
-        transfer(
-            amount, 
-            storage.pida,
-            Identity::ContractId(contract_id())
-        );
+        transfer(amount, storage.pida, Identity::ContractId(contract_id()));
         // accounting
         let new_lock = create_lock_internal(recipient, amount, end);
-        
+
         new_lock
     }
 
@@ -493,7 +442,6 @@ impl Locker for Contract {
     /***************************************
     GOVERNANCE FUNCTIONS
     ***************************************/
-
     #[storage(read, write)]
     fn add_xp_lock_listener(listener: ContractId) {
         validate_owner();
@@ -502,11 +450,9 @@ impl Locker for Contract {
 
         storage.listeners_map.insert(listener, index);
 
-        log(
-            XpLockListenerAdded {
-                listener: listener
-            }
-        );
+        log(XpLockListenerAdded {
+            listener: listener,
+        });
     }
 
     #[storage(read, write)]
@@ -516,12 +462,10 @@ impl Locker for Contract {
         let listener_index = storage.listeners_map.get(listener).unwrap();
         let removed_listener = storage.xp_lock_listeners.remove(listener_index);
         let removed_map = storage.listeners_map.remove(removed_listener);
-        
-        log(
-            XpLockListenerRemoved {
-                listener: removed_listener
-            }
-        );
+
+        log(XpLockListenerRemoved {
+            listener: removed_listener,
+        });
 
         removed_map
     }
@@ -532,5 +476,5 @@ impl Locker for Contract {
         let mut uri = storage.base_uri;
         uri = base_uri;
         storage.base_uri = uri;
-    }  
+    }
 }

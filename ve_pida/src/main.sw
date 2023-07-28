@@ -5,13 +5,15 @@ use std::block::*;
 
 use locker_abi::*;
 
-use nft::{
-    balance_of,
-};
+use nft::{balance_of};
 
 storage {
-    owner: Address = Address { value: ZERO_B256 },
-    xp_locker: ContractId = ContractId { value: ZERO_B256 },
+    owner: Address = Address {
+        value: ZERO_B256,
+    },
+    xp_locker: ContractId = ContractId {
+        value: ZERO_B256,
+    },
 }
 
 const MAX_LOCK_DURATION: u64 = 126_144_000; // 4 years in seconds
@@ -24,19 +26,18 @@ fn balance_of_lock(xp_lock_id: u64) -> u64 {
     let locker = abi(Locker, storage.xp_locker.value);
     let lock = locker.locks(xp_lock_id);
     let base = lock.amount * UNLOCKED_MULTIPLIER_BPS / MAX_BPS;
-    
+
     let mut bonus = 0;
 
     if (lock.end <= timestamp()) {
         bonus = 0; // unlocked
     } else {
-        bonus = lock.amount * (lock.end - timestamp()) * (MAX_LOCK_MULTIPLIER_BPS - UNLOCKED_MULTIPLIER_BPS) / (MAX_LOCK_DURATION * MAX_BPS); // locked
+        bonus = lock.amount * (lock.end - timestamp()) * (MAX_LOCK_MULTIPLIER_BPS - UNLOCKED_MULTIPLIER_BPS) / (MAX_LOCK_DURATION * MAX_BPS); 
+// locked
     }
-
     return base + bonus;
+
 }
-
-
 abi VePida {
     #[storage(read, write)]
     fn initialize(owner: Address, xp_locker: ContractId);
@@ -45,8 +46,7 @@ abi VePida {
     fn balance_of(account: Identity) -> u64;
 
     #[storage(read)]
-    fn total_supply() -> u64; 
-
+    fn total_supply() -> u64;
     fn name() -> str[18];
 
     fn symbol() -> str[6];
@@ -58,7 +58,7 @@ impl VePida for Contract {
     #[storage(read, write)]
     fn initialize(owner: Address, xp_locker: ContractId) {
         assert(xp_locker != ContractId::from(ZERO_B256));
-        
+
         let mut owner_store = storage.owner;
         let mut xp_store = storage.xp_locker;
 
@@ -67,12 +67,11 @@ impl VePida for Contract {
 
         storage.owner = owner_store;
         storage.xp_locker = xp_store;
-    }
 
+    }
     /***************************************
     VIEW fnS
     ***************************************/
-
     #[storage(read)]
     fn balance_of(account: Identity) -> u64 {
         let locker = abi(Locker, storage.xp_locker.value);
@@ -87,8 +86,8 @@ impl VePida for Contract {
         };
 
         return balance;
-    }
 
+    }
     #[storage(read)]
     fn total_supply() -> u64 {
         let locker = abi(Locker, storage.xp_locker.value);
@@ -102,18 +101,16 @@ impl VePida for Contract {
         };
 
         return supply;
-    }
 
+    }
     fn name() -> str[18] {
         return "Voting Escrow Pida";
-    }
 
-    
+    }
     fn symbol() -> str[6] {
         return "vePIDA";
-    }
 
-    
+    }
     fn decimals() -> u8 {
         return 18u8;
     }

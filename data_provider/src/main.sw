@@ -11,7 +11,9 @@ use reentrancy::*;
 use data_provider_abi::*;
 
 storage {
-    owner: Address = Address { value: ZERO_B256 },
+    owner: Address = Address {
+        value: ZERO_B256,
+    },
     uwp_balance_of: StorageMap<str[20], u64> = StorageMap {},
     index_to_uwp: StorageMap<u64, str[20]> = StorageMap {},
     uwp_to_index: StorageMap<str[20], u64> = StorageMap {},
@@ -20,10 +22,6 @@ storage {
     num_of_pools: u64 = 0,
     max_cover: u64 = 0,
 }
-
-/***************************************
-    INTERNAL FUNCTIONS
-***************************************/
 
 fn get_msg_sender_address_or_panic() -> Address {
     let sender: Result<Identity, AuthError> = msg_sender();
@@ -75,11 +73,9 @@ fn set_internal(uwp_names: Vec<str[20]>, amounts: Vec<u64>) {
         let _ = storage.index_to_uwp.remove(i1);
         let _ = storage.uwp_balance_of.remove(uwp_name);
 
-        log(
-            UnderwritingPoolRemoved {
-                uwp_name: uwp_name,
-            }
-        );
+        log(UnderwritingPoolRemoved {
+            uwp_name: uwp_name,
+        });
 
         i1 = i1 - 1;
     };
@@ -102,12 +98,10 @@ fn set_internal(uwp_names: Vec<str[20]>, amounts: Vec<u64>) {
             storage.num_of_pools = index;
         };
 
-        log(
-            UnderwritingPoolSet {
-                uwp_name: uwp_name,
-                amount: amount,
-            }
-        );
+        log(UnderwritingPoolSet {
+            uwp_name: uwp_name,
+            amount: amount,
+        });
         i += 1;
     }
     storage.max_cover = cover;
@@ -143,11 +137,9 @@ fn remove_internal(uwp_names: Vec<str[20]>) {
 
         storage.num_of_pools -= 1;
 
-        log(
-            UnderwritingPoolRemoved {
-                uwp_name: uwp_name,
-            }
-        );
+        log(UnderwritingPoolRemoved {
+            uwp_name: uwp_name,
+        });
 
         i = i + 1;
     }
@@ -166,7 +158,6 @@ impl DataProvider for Contract {
     /***************************************
      MUTUATOR FUNCTIONS
     ***************************************/
-
     #[storage(read, write)]
     fn set(uwp_names: Vec<str[20]>, amounts: Vec<u64>) {
         reentrancy_guard();
@@ -175,17 +166,16 @@ impl DataProvider for Contract {
         assert(uwp_names.len() == amounts.len());
         set_internal(uwp_names, amounts);
     }
-  
+
     #[storage(read, write)]
     fn remove(uwp_names: Vec<str[20]>) {
         can_update();
         remove_internal(uwp_names);
     }
-    
+
     /***************************************
      VIEW FUNCTIONS
     ***************************************/
-
     #[storage(read)]
     fn max_cover() -> u64 {
         let pools = storage.num_of_pools;
@@ -229,7 +219,6 @@ impl DataProvider for Contract {
     /***************************************
      GOVERNANCE FUNCTIONS
     ***************************************/
-
     #[storage(read, write)]
     fn add_updater(updater: Identity) {
         validate_owner();
@@ -237,13 +226,11 @@ impl DataProvider for Contract {
         storage.updaters.insert(updater, (len + 1));
         storage.updaters_vec.push(updater);
 
-        log(
-            UwpUpdaterSet {
-                uwp_updater: updater,
-            }
-        );
+        log(UwpUpdaterSet {
+            uwp_updater: updater,
+        });
     }
-  
+
     #[storage(read, write)]
     fn remove_updater(updater: Identity) {
         validate_owner();
@@ -257,10 +244,8 @@ impl DataProvider for Contract {
         let _ = storage.updaters.remove(updater);
         let _ = storage.updaters_vec.remove(index);
 
-        log(
-            UwpUpdaterRemoved {
-                uwp_updater: updater,
-            }
-        );
+        log(UwpUpdaterRemoved {
+            uwp_updater: updater,
+        });
     }
 }

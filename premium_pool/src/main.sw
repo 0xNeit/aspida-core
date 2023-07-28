@@ -10,7 +10,9 @@ use std::auth::*;
 use premium_pool_abi::*;
 
 storage {
-    owner: Address = Address { value: ZERO_B256 },
+    owner: Address = Address {
+        value: ZERO_B256,
+    },
 }
 
 fn balance_internal(token: ContractId) -> u64 {

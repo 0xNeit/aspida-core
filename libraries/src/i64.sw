@@ -9,7 +9,10 @@ pub struct I64 {
 
 impl From<u64> for I64 {
     fn from(value: u64) -> Self {
-        Self {value, negative: false}
+        Self {
+            value,
+            negative: false,
+        }
     }
 
     fn into(self) -> u64 {
@@ -131,7 +134,7 @@ impl core::ops::Add for I64 {
             }
         } else if (self.value == other.value) {
             Self::new()
-        } else{
+        } else {
             revert(0)
         }
     }
@@ -140,20 +143,33 @@ impl core::ops::Add for I64 {
 impl core::ops::Subtract for I64 {
     /// Subtract a I64 from a I64. Panics of overflow.
     fn subtract(self, other: Self) -> Self {
-        if self == other {Self::new()}
-        else if !self.negative && !other.negative && self.value > other.value {
+        if self == other {
+            Self::new()
+        } else if !self.negative
+            && !other.negative
+            && self.value > other.value
+        {
             Self::from(self.value - other.value)
-        } else if !self.negative && !other.negative && self.value < other.value  {
+        } else if !self.negative
+            && !other.negative
+            && self.value < other.value
+        {
             Self::neg_from(other.value - self.value)
-        } else if self.negative && other.negative && self.value > other.value {
+        } else if self.negative
+            && other.negative
+            && self.value > other.value
+        {
             Self::neg_from(self.value - other.value)
-        } else if self.negative && other.negative && self.value < other.value  {
+        } else if self.negative
+            && other.negative
+            && self.value < other.value
+        {
             Self::from(other.value - self.value)
-        } else if !self.negative && other.negative{
+        } else if !self.negative && other.negative {
             Self::from(self.value + other.value)
         } else if self.negative && !other.negative {
             Self::neg_from(self.value + other.value)
-        }  else{
+        } else {
             revert(0)
         }
     }
@@ -162,13 +178,13 @@ impl core::ops::Subtract for I64 {
 impl core::ops::Multiply for I64 {
     /// Multiply a I64 with a I64. Panics of overflow.
     fn multiply(self, other: Self) -> Self {
-        if self.value == 0 || other.value == 0{
-            Self::new()    
-        }else if !self.negative == !other.negative {
+        if self.value == 0 || other.value == 0 {
+            Self::new()
+        } else if !self.negative == !other.negative {
             Self::from(self.value * other.value)
-        }else if !self.negative != !other.negative{
+        } else if !self.negative != !other.negative {
             Self::neg_from(self.value * other.value)
-        } else{
+        } else {
             revert(0)
         }
     }
@@ -178,13 +194,13 @@ impl core::ops::Divide for I64 {
     /// Divide a I64 by a I64. Panics if divisor is zero.
     fn divide(self, divisor: Self) -> Self {
         assert(divisor != Self::new());
-        if self.value == 0{
-            Self::new()    
-        }else if !self.negative == !divisor.negative {
+        if self.value == 0 {
+            Self::new()
+        } else if !self.negative == !divisor.negative {
             Self::from(self.value / divisor.value)
-        }else if !self.negative != !divisor.negative{
+        } else if !self.negative != !divisor.negative {
             Self::neg_from(self.value * divisor.value)
-        } else{
+        } else {
             revert(0)
         }
     }
