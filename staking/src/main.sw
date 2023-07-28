@@ -6,11 +6,14 @@ use std::constants::ZERO_B256;
 use std::assert::*;
 use std::block::*;
 use std::call_frames::contract_id;
+use std::auth::*;
+use std::b512::B512;
 
 use registry_abi::Registry;
 use locker_abi::{ Lock, Locker };
 use token_abi::*;
 use staking_abi::*;
+use cpm_abi::*;
 use events::*;
 use nft::{
     owner_of,
@@ -42,16 +45,16 @@ storage {
     value_staked: u64 = 0,                              // Value of tokens staked by all farmers.
 
     lock_info: StorageMap<u64, StakedLockInfo> = StorageMap {},
-    was_lock_migrated: StorageMap<u64, bool> = StorageMap {}, 
+    // was_lock_migrated: StorageMap<u64, bool> = StorageMap {}, 
 }
 
-/// @notice The maximum duration of a lock in seconds.
+/// The maximum duration of a lock in seconds.
 const MAX_LOCK_DURATION: u64 = 126_144_000;
 
-/// @notice The vote power multiplier at max lock in bps.
+/// The vote power multiplier at max lock in bps.
 const MAX_LOCK_MULTIPLIER_BPS: u64 = 25000;  // 2.5X
 
-/// @notice The vote power multiplier when unlocked in bps.
+/// The vote power multiplier when unlocked in bps.
 const UNLOCKED_MULTIPLIER_BPS: u64 = 10000; // 1X
 
 // 1 bps = 1/10000
@@ -67,10 +70,7 @@ fn as_contract_id(to: Identity) -> Option<ContractId> {
     }
 }
 
-/**
-    * @notice Sets registry and related contract addresses.
-    * @param _registry The registry address to set.
-*/
+
 #[storage(read, write)]
 fn set_registry_internal(registry: ContractId) {
     assert(registry != ContractId::from(ZERO_B256));
@@ -130,12 +130,8 @@ fn min(a: u64, b: u64) -> u64 {
 
     answer
 }
-/**
-    * @notice Calculates the reward amount distributed between two timestamps.
-    * @param from The start of the period to measure rewards for.
-    * @param to The end of the period to measure rewards for.
-    * @return amount The reward amount distributed in the given period.
-*/
+
+
 #[storage(read)]
 fn get_reward_amount_distributed(from: u64, to: u64) -> u64 {
     // validate window
@@ -156,13 +152,22 @@ fn as_address(to: Identity) -> Option<Address> {
     }
 }
 
-/**
-    * @notice Fetches up to date information about a lock.
-    * @param xp_lock_id The ID of the lock to query.
-    * @return exists True if the lock exists.
-    * @return owner The owner of the lock or the zero address if it doesn't exist.
-    * @return lock The lock itself.
-*/
+pub fn get_msg_sender_address_or_panic() -> Address {
+    let sender: Result<Identity, AuthError> = msg_sender();
+    if let Identity::Address(address) = sender.unwrap() {
+        address
+    } else {
+        revert(0);
+    }
+}
+
+#[storage(read)]
+fn validate_owner() {
+    let sender = get_msg_sender_address_or_panic();
+    assert(storage.owner == sender);
+}
+
+
 #[storage(read)]
 fn fetch_lock_info(xp_lock_id: u64) -> (bool, Address, Lock) {
     let locker = abi(Locker, storage.xp_locker.value);
@@ -232,7 +237,7 @@ fn update_lock(xp_lock_id: u64) -> (u64, Address) {
     if (owner != lock_info.owner && exists) {
         lock_info.owner = owner;
     };
-    storage.lock_info.remove(xp_lock_id);
+    let _ = storage.lock_info.remove(xp_lock_id);
     storage.lock_info.insert(xp_lock_id, lock_info);
     
     log(
@@ -264,6 +269,29 @@ fn harvest_internal(xp_lock_id: u64) {
 }
 
 #[storage(read, write)]
+fn harvest_for_acp_internal(
+    xp_lock_id: u64,
+    price: u64,
+    price_deadline: u64,
+    signature: B512,
+) {
+    let sender = msg_sender().unwrap();
+    let (transfer_amount, owner) = update_lock(xp_lock_id);
+    assert(as_address(sender).unwrap() == owner);
+    // buy acp
+    if (owner != Address::from(ZERO_B256) && transfer_amount != 0) {
+        abi(CoverPaymentManager, storage.cover_payment_manager.value).deposit_non_stable(
+            storage.pida, 
+            Identity::Address(owner), 
+            transfer_amount, 
+            price, 
+            price_deadline, 
+            signature
+        );
+    }
+}
+
+#[storage(read, write)]
 fn update() {
     if (timestamp() <= storage.last_reward_time) {
         return;
@@ -290,19 +318,15 @@ impl Staking for Contract {
 
     }
 
-    /// @notice Information about each lock.
-    /// @dev lock id => lock info
+    /// Information about each lock.
+    /// lock id => lock info
     #[storage(read)]
     fn staked_lock_info(xp_lock_id: u64) -> StakedLockInfo {
         let lock_info = storage.lock_info.get(xp_lock_id).unwrap();
         lock_info
     }
 
-    /**
-        * @notice Calculates the accumulated balance of PIDA for specified lock.
-        * @param xp_lock_id The ID of the lock to query rewards for.
-        * @return reward Total amount of withdrawable reward tokens.
-    */
+    
     #[storage(read)]
     fn pending_rewards_of_lock(xp_lock_id: u64) -> u64 {
         // get lock information
@@ -357,4 +381,121 @@ impl Staking for Contract {
             i = i + 1;
         }
     }
+
+    #[storage(read, write)]
+    fn compound_lock(xp_lock_id: u64) {
+        let sender = msg_sender().unwrap();
+        let locker = abi(Locker, storage.xp_locker.value);
+        assert(sender == owner_of(xp_lock_id).unwrap());
+        update();
+        let (transfer_amount, _) = update_lock(xp_lock_id);
+
+        if (transfer_amount != 0) {
+            locker.increase_amount(xp_lock_id, transfer_amount);
+        }
+    }
+
+    #[storage(read, write)]
+    fn compound_locks(xp_lock_ids: Vec<u64>, increased_lock_id: u64) {
+        update();
+        let sender = msg_sender().unwrap();
+        let locker = abi(Locker, storage.xp_locker.value);
+        let len = xp_lock_ids.len();
+        let mut transfer_amount = 0;
+        let mut i = 0;
+        while (i < len) {
+            let xp_lock_id = xp_lock_ids.get(i).unwrap();
+            assert(sender == owner_of(xp_lock_id).unwrap());
+            let (ta, _) = update_lock(xp_lock_id);
+            transfer_amount += ta;
+            i = 1 + 1;
+        };
+
+        if (transfer_amount != 0) {
+            locker.increase_amount(increased_lock_id, transfer_amount);
+        };
+    }
+
+    #[storage(read, write)]
+    fn harvest_lock_for_acp(
+        xp_lock_id: u64,
+        price: u64,
+        price_deadline: u64,
+        signature: B512,
+    ) {
+        reentrancy_guard();
+        update();
+        harvest_for_acp_internal(xp_lock_id, price, price_deadline, signature);
+    }
+
+    #[storage(read, write)]
+    fn harvest_locks_for_acp(
+        xp_lock_ids: Vec<u64>, 
+        price: u64, 
+        price_deadline: u64, 
+        signature: B512,
+    ) {
+        reentrancy_guard();
+        update();
+        let len = xp_lock_ids.len();
+        let mut i = 0;
+        while (i < len) {
+            harvest_for_acp_internal(
+                xp_lock_ids.get(i).unwrap(), 
+                price, 
+                price_deadline, 
+                signature
+            );
+
+            i = i + 1;
+        }
+    }
+
+    #[storage(read, write)]
+    fn set_rewards(reward_per_second: u64) {
+        validate_owner();
+        update();
+
+        let mut reward_store = storage.reward_per_second;
+        reward_store = reward_per_second;
+        storage.reward_per_second = reward_store;
+
+        log(
+            RewardsSet {
+                reward_per_second: reward_per_second
+            }
+        );
+    }
+
+    #[storage(read, write)]
+    fn set_times(start_time: u64, end_time: u64) {
+        validate_owner();
+
+        assert(start_time <= end_time);
+
+        let mut st = storage.start_time;
+        st = start_time;
+        storage.start_time = st;
+
+        let mut et = storage.end_time;
+        et = end_time;
+        storage.end_time = et;
+
+        log(
+            FarmTimesSet {
+                start_time: start_time,
+                end_time: end_time
+            }
+        );
+
+        update();
+    }
+
+    #[storage(read, write)]
+    fn set_registry(registry: ContractId) {
+        validate_owner();
+
+        set_registry_internal(registry);
+    }
+
 }

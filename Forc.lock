@@ -213,6 +213,7 @@ dependencies = [
 name = 'staking'
 source = 'member'
 dependencies = [
+    'cpm_abi',
     'locker_abi',
     'nft',
     'reentrancy',

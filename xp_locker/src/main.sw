@@ -375,15 +375,7 @@ impl Locker for Contract {
     MUTATOR FUNCTIONS
     ***************************************/
 
-    /**
-     * @notice Deposit PIDA to create a new lock.
-     * @dev PIDA is transferred from msg_sender().
-     * @dev use end=0 to initialize as unlocked.
-     * @param recipient The account that will receive the lock.
-     * @param amount The amount of PIDA to deposit.
-     * @param end The timestamp the lock will unlock.
-     * @return xp_lock_id The ID of the newly created lock.
-    */
+    
     #[storage(read, write)]
     fn create_lock(
         recipient: Identity, 

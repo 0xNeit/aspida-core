@@ -1,5 +1,6 @@
 library;
 
+use std::b512::B512;
 use locker_abi::Lock;
 
 abi Staking {
@@ -26,6 +27,37 @@ abi Staking {
     
     #[storage(read, write)]
     fn harvest_locks(xp_lock_ids: Vec<u64>);
+
+    #[storage(read, write)]
+    fn compound_lock(xp_lock_id: u64);
+
+    #[storage(read, write)]
+    fn compound_locks(xp_lock_ids: Vec<u64>, increased_lock_id: u64);
+
+    #[storage(read, write)]
+    fn harvest_lock_for_acp(
+        xp_lock_id: u64,
+        price: u64,
+        price_deadline: u64,
+        signature: B512,
+    );
+
+    #[storage(read, write)]
+    fn harvest_locks_for_acp(
+        xp_lock_ids: Vec<u64>, 
+        price: u64, 
+        price_deadline: u64, 
+        signature: B512,
+    );
+
+    #[storage(read, write)]
+    fn set_rewards(reward_per_second: u64);
+
+    #[storage(read, write)]
+    fn set_times(start_time: u64, end_time: u64);
+
+    #[storage(read, write)]
+    fn set_registry(registry: ContractId);
 }
 
 // Info of each lock.

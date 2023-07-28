@@ -35,11 +35,7 @@ pub fn get_msg_sender_address_or_panic() -> Address {
     }
 }
 
-/**
-    * @notice Returns true if `account` is authorized to mint PIDA.
-    * @param account Account to query.
-    * @return status True if `account` can mint, false otherwise.
-*/
+
 #[storage(read)]
 fn is_minter(account: Address) -> bool {
     let answer = storage.minters.get(account).unwrap();
@@ -86,12 +82,7 @@ impl FRC20 for Contract {
         mint_to_address(amount, sender);
         storage.total_supply = (storage.total_supply + amount);
     }
-    /**
-     * @notice Mints new PIDA to the receiver account.
-     * Can only be called by authorized minters.
-     * @param account The receiver of new tokens.
-     * @param amount The number of new tokens.
-     */
+    
     #[storage(read, write)]
     fn mint_to(account: Address, amount: u64) {
         assert(amount <= MAX_SUPPLY);
@@ -104,10 +95,7 @@ impl FRC20 for Contract {
         storage.total_supply = (storage.total_supply + amount);
     }
 
-    /**
-     * @notice Burns PIDA from msg_sender.
-     * @param amount Amount to burn.
-     */
+    
     #[storage(read)]
     fn burn(amount: u64) {
         let sender = msg_sender().unwrap();
@@ -120,22 +108,14 @@ impl FRC20 for Contract {
         balance_of_internal(account)
     }
 
-    /**
-     * @notice Adds a new minter.
-     * Can only be called by the current Owner.
-     * @param minter The new minter.
-     */
+    
     #[storage(read, write)]
     fn add_minter(minter: Address) {
         validate_owner();
         storage.minters.insert(minter, true);
     }
 
-    /**
-     * @notice Removes a minter.
-     * Can only be called by the current Owner.
-     * @param minter The minter to remove.
-     */
+    
     #[storage(read, write)]
     fn remove_minter(minter: Address) -> bool {
         validate_owner();
